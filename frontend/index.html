@@ -350,11 +350,11 @@ function calculateRejectionRate(putBack, pickUp) {
 // video real nuevo (ver frontend/README.md, seccion de datos MERL).
 const VIDEOS_REALES_CONOCIDOS = new Set([
   'video_001',
-  'video_demo_merl_24_3',
-  'video_demo_merl_15_3',
-  'video_demo_merl_39_1',
-  'video_demo_merl_18_3',
-  'video_demo_merl_36_1',
+  'video_002',
+  'video_003',
+  'video_004',
+  'video_005',
+  'video_006',
 ]);
 
 function isDemoVideo(videoId) {
@@ -552,6 +552,16 @@ const state = {
   errorDetail: null,
   errorMetrics: null,
   isConfigModalOpen: false,
+  // Borrador del campo de URL en el modal de configuracion: separado de
+  // apiBaseUrl (la URL ya aplicada) para que escribir una URL nueva y
+  // pulsar "Probar" no la borre. "Probar" dispara un fetch async que
+  // termina en setState() -> render(), y render() reconstruye el <input>
+  // entero desde state; si el value="" leyera apiBaseUrl directamente, el
+  // re-render posterior a la prueba pisaba lo que la persona acababa de
+  // escribir con el valor viejo ya guardado (bug real, visto probando el
+  // dashboard: la prueba de conexion evaluaba la URL escrita, pero el
+  // campo volvia a mostrar la URL anterior apenas llegaba la respuesta).
+  configUrlDraft: null,
   zonesViewMode: 'table',
   configTest: null,
   configTesting: false,
@@ -2059,7 +2069,7 @@ function renderConfigModal() {
             <button type="button" data-action="reset-default-url" class="text-[11px] text-indigo-600 hover:underline">Restablecer (127.0.0.1:8000)</button>
           </div>
           <div class="flex gap-2">
-            <input id="api-base-url-input" type="text" value="${esc(state.apiBaseUrl)}" placeholder="http://127.0.0.1:8000"
+            <input id="api-base-url-input" type="text" value="${esc(state.configUrlDraft ?? state.apiBaseUrl)}" placeholder="http://127.0.0.1:8000"
                    class="flex-1 px-3 py-2 text-sm font-mono bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
             <button type="button" data-action="test-connection" ${state.configTesting ? 'disabled' : ''} class="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50">
               ${state.configTesting ? icon('refresh-cw', 'w-3.5 h-3.5 animate-spin text-slate-500') : icon('server', 'w-3.5 h-3.5 text-slate-500')} Probar
@@ -2356,13 +2366,13 @@ document.addEventListener('click', async (e) => {
   if (action === 'entrar-panel') setState({ mostrandoInicio: false });
   else if (action === 'exportar-pdf') window.print();
   else if (action === 'exportar-csv') exportarCSV();
-  else if (action === 'open-settings') setState({ isConfigModalOpen: true, configTest: null });
+  else if (action === 'open-settings') setState({ isConfigModalOpen: true, configTest: null, configUrlDraft: null });
   else if (action === 'toggle-dark-mode') {
     const nuevo = !state.darkMode;
     localStorage.setItem('gondola_dark_mode', String(nuevo));
     setState({ darkMode: nuevo });
   }
-  else if (action === 'close-settings') setState({ isConfigModalOpen: false, configTest: null });
+  else if (action === 'close-settings') setState({ isConfigModalOpen: false, configTest: null, configUrlDraft: null });
   else if (action === 'refresh-videos') loadVideos();
   else if (action === 'retry-detail') loadVideoDetail(state.selectedVideoId);
   else if (action === 'retry-health') verifyHealth();
@@ -2375,10 +2385,10 @@ document.addEventListener('click', async (e) => {
     if (!state.compareA && state.selectedVideoId) loadCompareData('A', state.selectedVideoId);
   }
   else if (action === 'cerrar-comparacion') setState({ mostrandoComparacion: false });
-  else if (action === 'reset-default-url') { document.getElementById('api-base-url-input').value = DEFAULT_API_BASE_URL; }
+  else if (action === 'reset-default-url') { setState({ configUrlDraft: DEFAULT_API_BASE_URL }); }
   else if (action === 'test-connection') {
     const url = document.getElementById('api-base-url-input').value;
-    setState({ configTesting: true, configTest: null });
+    setState({ configTesting: true, configTest: null, configUrlDraft: url });
     try {
       const res = await checkBackendHealth(url);
       setState({ configTesting: false, configTest: { success: true, message: `Conexión exitosa: GET /health respondió status "${res.status}"` } });
@@ -2392,10 +2402,18 @@ document.addEventListener('click', async (e) => {
     state.apiBaseUrl = url;
     state.isConfigModalOpen = false;
     state.configTest = null;
+    state.configUrlDraft = null;
     render();
     verifyHealth();
     loadVideos();
   }
+});
+
+document.addEventListener('input', (e) => {
+  // Sin render() aqui a proposito: solo guarda lo que la persona ya ve
+  // escrito, para que un setState() disparado por otra cosa (el fetch de
+  // "Probar", por ejemplo) no lo borre. Ver el docstring de configUrlDraft.
+  if (e.target.id === 'api-base-url-input') state.configUrlDraft = e.target.value;
 });
 
 document.addEventListener('change', (e) => {

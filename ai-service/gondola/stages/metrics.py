@@ -1,5 +1,4 @@
-"""Etapa final: metricas agregadas por gondola. Responsable:
- Persona 6 toco a la  7 pq no lo hicieron!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111111111111111.
+"""Etapa final: metricas agregadas por gondola. Responsable: Persona 6.
 
 QUE HACE
 --------

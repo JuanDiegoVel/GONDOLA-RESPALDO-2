@@ -67,9 +67,11 @@ def test_metricas_del_video_devuelve_una_fila_por_zona(video_importado):
     respuesta = cliente.get(f"/videos/{video_importado}/metrics")
     assert respuesta.status_code == 200
     filas = respuesta.json()
-    assert len(filas) == 1  # solo la gondola tiene fila en metrics.json
-    assert filas[0]["zone_id"] == f"{video_importado}_gondola_A"
-    assert filas[0]["people_count"] == 2  # la persona sin zona no cuenta aqui
+    assert len(filas) == 3  # 1 gondola + 2 estantes, ver gondola/stages/metrics.py
+    gondola_id = f"{video_importado}_gondola_A"
+    assert filas[0]["zone_id"] == gondola_id  # ORDER BY z.zone_id: la gondola ordena primero
+    gondola = next(f for f in filas if f["zone_id"] == gondola_id)
+    assert gondola["people_count"] == 2  # la persona sin zona no cuenta aqui
 
 
 def test_metricas_de_zona_desconocida_da_404(video_importado):

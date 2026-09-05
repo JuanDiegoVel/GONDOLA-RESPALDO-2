@@ -2,15 +2,10 @@
 
 Construyen los tres archivos de entrada A MANO -sin video, sin YOLO, sin
 correr el pipeline-, igual que los tests de las demas etapas. El
-`metrics.json` de prueba se calcula A MANO aqui mismo (ver
-`_metrics_esperado_5_eventos`), en vez de reutilizar
-`gondola.stages.metrics` como se hacia antes: ese modulo tiene mas de una
-implementacion en juego ahora mismo (la del equipo original y la de
-Maryi, que no comparten funciones internas), asi que estos tests no deben
-depender de las internas de NINGUNA de las dos. Lo que este archivo
-prueba es que el IMPORTADOR traduce bien un metrics.json a filas de
-PostgreSQL, no que la aritmetica de metricas sea correcta -eso es
-responsabilidad de los tests de la Persona 6.
+`metrics.json` de prueba se genera reutilizando `gondola.stages.metrics`
+(ya probado por la Persona 6) en vez de calcularlo aqui otra vez a mano: lo
+que este archivo prueba es que el IMPORTADOR traduce bien esos datos a
+filas de PostgreSQL, no que la aritmetica de metricas sea correcta.
 """
 
 from __future__ import annotations
@@ -36,8 +31,24 @@ from gondola.contract import (  # noqa: E402
     BBox, Detection, Event, Interaction, InteractionEvent, Metrics, Zone,
 )
 from gondola.jsonl import write_events  # noqa: E402
+from gondola.stages.metrics import acumular_evento, cerrar_zona, Resumen  # noqa: E402
 
 FPS = 25.0
+
+
+def _agregar(eventos: list[Event]) -> dict[str, dict]:
+    """Reproduce en memoria lo que `gondola.stages.metrics.run()` hace sobre
+    un archivo: agrega una lista de eventos ya construidos (sin pasar por
+    disco) y devuelve las filas listas para meterlas en metrics.json, una
+    por gondola y una por cada estante -ver el docstring de
+    gondola/stages/metrics.py-. Reemplaza a la vieja `_agregar` (funcion
+    que ya no existe en metrics.py tras su refactor a acumular_evento() +
+    cerrar_zona(); este archivo se quedo atras de ese cambio)."""
+    agregados: dict[str, object] = {}
+    resumen = Resumen()
+    for evento in eventos:
+        acumular_evento(agregados, evento, resumen)
+    return {zone_id: cerrar_zona(zona) for zone_id, zona in agregados.items()}
 
 
 def _zones_config(video_id: str) -> dict:
@@ -113,32 +124,11 @@ def _preparar_archivos(tmp_path: Path, video_id: str) -> tuple[Path, Path, list[
     interact_path = output_dir / f"{video_id}.interact.jsonl"
     write_events(interact_path, eventos)
 
-    # Calculado a mano (ver test_importa_video_zonas_eventos_y_metricas):
-    # track 1 (gondola_id): dwell 1.0, 2.0, 3.0; interacciones APPROACH,
-    # None, PICK_UP. track 2 (gondola_id): dwell 0.5; interaccion
-    # APPROACH. track 3: sin zona, no cuenta para ninguna zona.
-    #   people_count      = 2          (tracks 1 y 2)
-    #   interaction_count = 3          (APPROACH+PICK_UP de t1, APPROACH de t2)
-    #   pick_up_count     = 1, put_back_count = 0
-    #   average_dwell_time_s = (1.0+2.0+3.0+0.5) / 4 = 1.625
-    #   interaction_rate  = 2/2 = 1.0  (t1 y t2 tuvieron >=1 interaccion)
-    #   pick_up_rate      = 1/3 = 0.3333333333333333
-    #   conversion_rate   = 1/2 = 0.5  (solo t1 tuvo un PICK_UP)
+    zonas = _agregar(eventos)
     metrics_json = {
         "contract_version": "1.0.0",
         "video_id": video_id,
-        "zones": {
-            gondola_id: {
-                "people_count": 2,
-                "interaction_count": 3,
-                "pick_up_count": 1,
-                "put_back_count": 0,
-                "average_dwell_time_s": 1.625,
-                "interaction_rate": 1.0,
-                "pick_up_rate": 1 / 3,
-                "conversion_rate": 0.5,
-            },
-        },
+        "zones": zonas,
     }
     (output_dir / f"{video_id}.metrics.json").write_text(
         json.dumps(metrics_json), encoding="utf-8"
@@ -154,7 +144,7 @@ def test_importa_video_zonas_eventos_y_metricas(tmp_path, video_id, db_conn):
 
     assert resumen.eventos_importados == len(eventos)
     assert resumen.zonas_importadas == 3  # 1 gondola + 2 estantes
-    assert resumen.metricas_importadas == 1  # solo la gondola tiene fila en metrics.json
+    assert resumen.metricas_importadas == 3  # una fila por gondola y una por cada estante
     assert resumen.fps_derivados == pytest.approx(FPS, rel=1e-3)
 
     video = db.find_video(db_conn, video_id)
@@ -162,14 +152,14 @@ def test_importa_video_zonas_eventos_y_metricas(tmp_path, video_id, db_conn):
     assert video["width"] == 1280
     assert video["height"] == 720
 
+    gondola_id = f"{video_id}_gondola_A"
     filas_metrics = db.metrics_by_video(db_conn, video_id)
-    assert len(filas_metrics) == 1
-    gondola = filas_metrics[0]
+    assert len(filas_metrics) == 3
+    gondola = next(f for f in filas_metrics if f["zone_id"] == gondola_id)
     assert gondola["people_count"] == 2       # track_id 1 y 2 (el 3 no tiene zona)
     assert gondola["pick_up_count"] == 1
     # track 1: APPROACH + PICK_UP (estante_1); track 2: APPROACH (estante_2).
-    # Ambos estantes cuelgan de la misma gondola, que es el nivel al que
-    # agrega metrics.json (ver gondola/stages/metrics.py).
+    # La fila de la gondola es la suma de todos sus estantes.
     assert gondola["interaction_count"] == 3
 
     filas_events = db_conn.execute(
@@ -213,7 +203,7 @@ def test_reimportar_no_duplica_filas(tmp_path, video_id, db_conn):
         {"id": video_id},
     ).fetchone()
     assert conteo["eventos"] == len(eventos)
-    assert conteo["metricas"] == 1
+    assert conteo["metricas"] == 3  # 1 gondola + 2 estantes
     assert conteo["videos"] == 1
 
 
@@ -242,27 +232,12 @@ def test_fps_no_derivable_requiere_override(tmp_path, video_id):
     solo_frame_cero = [_evento(video_id, 0, 1, gondola_id, "estante_1")]
     write_events(output_dir / f"{video_id}.interact.jsonl", solo_frame_cero)
 
-    # Un solo evento, un solo track, sin interaccion ni dwell registrado:
-    #   people_count = 1, interaction_count = pick_up_count = put_back_count = 0
-    #   average_dwell_time_s = None (no hay ningun dwell_time que promediar)
-    #   interaction_rate = 0/1 = 0.0, pick_up_rate = None (0 interacciones,
-    #   division indefinida), conversion_rate = 0/1 = 0.0
+    zonas = _agregar(solo_frame_cero)
     (output_dir / f"{video_id}.metrics.json").write_text(
         json.dumps({
             "contract_version": "1.0.0",
             "video_id": video_id,
-            "zones": {
-                gondola_id: {
-                    "people_count": 1,
-                    "interaction_count": 0,
-                    "pick_up_count": 0,
-                    "put_back_count": 0,
-                    "average_dwell_time_s": None,
-                    "interaction_rate": 0.0,
-                    "pick_up_rate": None,
-                    "conversion_rate": 0.0,
-                },
-            },
+            "zones": zonas,
         }),
         encoding="utf-8",
     )

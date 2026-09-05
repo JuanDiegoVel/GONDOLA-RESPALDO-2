@@ -20,7 +20,7 @@ dashboard.
 
 El resto del proyecto es Python de punta a punta, y este archivo es la
 excepción — es HTML + CSS + JavaScript vanilla (`index.html`, un solo
-archivo, ~1200 líneas). Se dice en voz alta en vez de esconderlo:
+archivo, ~2400 líneas). Se dice en voz alta en vez de esconderlo:
 
 - Se diseñó primero en React (con ayuda de una IA, a partir de un prompt que
   describe el contrato exacto de la API), y después se portó a mano a
