@@ -347,7 +347,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
      texto sigue siendo texto real (seleccionable, buscable) en el PDF. */
   .solo-imprimir { display: none; }
   @media print {
-    .no-imprimir, #video-player-portal, #video-compare-a-portal, #video-compare-b-portal { display: none !important; }
+    .no-imprimir, #video-player-portal, #video-compare-a-portal, #video-compare-b-portal, #modals-portal { display: none !important; }
     .solo-imprimir { display: block !important; }
     body { background: #fff !important; }
     main { max-width: 100% !important; padding: 0 !important; }
@@ -380,22 +380,32 @@ Check your Browserslist config to be sure that your targets are set up correctly
      el placeholder dentro de #root, pero el <video> en si nunca vive ahi
      adentro: nunca se destruye por un render(), sin importar cuantos
      ocurran mientras esta cargando. -->
-<!-- z-index:0, no 5: bug real, encontrado en la practica (reportado por un
-     companero de equipo en una version paralela) -el video quedaba
-     flotando SOBRE la portada y ATRAVESANDO los modales (configuracion,
-     subir video), sin importar que esos modales usaran z-50. La causa:
-     #root tiene position:relative + z-index:1, y eso lo convierte en su
-     PROPIO contexto de apilamiento -cualquier z-index de un hijo suyo
-     (z-50, z-9999, lo que sea) queda ATRAPADO adentro, comparandose solo
-     contra otros hijos de #root, nunca contra un HERMANO de #root como
-     este portal. Desde afuera, #root entero pinta como si fuera z-index:1,
-     asi que un hermano con z-index:5 le gana SIEMPRE, incluido cualquier
-     modal de adentro. Con z-index:0 (por debajo de #root) el portal ya no
-     le gana a nada de adentro -incluidos los modales-, y en el caso normal
-     (sin modal) igual se ve bien: el hueco que deja el placeholder dentro
-     de #root esta vacio, no hay nada opaco pintado encima que lo tape. -->
-<div id="video-player-portal" hidden style="position:absolute; z-index:0;"></div>
-<div id="video-compare-b-portal" hidden style="position:absolute; z-index:0;"></div>
+<!-- z-index:5: el video tiene que quedar POR ENCIMA del fondo opaco del
+     propio placeholder (bg-[#0B1220] en #video-player-placeholder, dentro
+     de #root) para verse en el caso normal -bajarlo a 0 (intento anterior
+     de arreglar el bug de los modales, ver comentario de #modals-portal
+     mas abajo) lo escondia detras de ese fondo: quedaba un rectangulo
+     oscuro solido en vez del video, bug real, encontrado en la practica. -->
+<div id="video-player-portal" hidden style="position:absolute; z-index:5;"></div>
+<div id="video-compare-b-portal" hidden style="position:absolute; z-index:5;"></div>
+
+<!-- "Portal" de los MODALES (configuracion, subir video): mismo problema
+     de fondo que el portal del video, pero al reves. #root tiene
+     position:relative + z-index:1, y eso lo convierte en su PROPIO
+     contexto de apilamiento: el z-50 de un modal, aunque generoso, queda
+     ATRAPADO ahi dentro, comparandose solo contra otros hijos de #root,
+     nunca contra un HERMANO de #root como el portal del video de arriba.
+     Desde afuera, #root entero pinta como si fuera z-index:1 nada mas, asi
+     que el portal del video (z-index:5) le gana SIEMPRE -incluido
+     cualquier modal de adentro-, sin importar que tan alto sea su z-index
+     interno. Bug real, reportado por un companero de equipo: el video
+     quedaba flotando sobre la portada y atravesando los modales. La
+     solucion real no era bajar el video (eso rompia su visibilidad
+     normal, ver el comentario de arriba): es sacar los modales TAMBIEN a
+     un hermano de #root, con un z-index mayor que el del video. render()
+     ya no mete renderConfigModal()/renderSubidaModal() dentro de
+     root.innerHTML: los pinta aca (ver el final de render()). -->
+<div id="modals-portal" style="position:relative; z-index:20;"></div>
 
 <script>
 // ============================================================================
@@ -2837,9 +2847,13 @@ function render() {
         <p>Góndola Inteligente · Consola de analítica de video para space management y planogramas.</p>
       </div>
     </footer>
-    ${renderConfigModal()}
-    ${renderSubidaModal()}
   `;
+
+  // Los modales van en #modals-portal, HERMANO de #root, no dentro de
+  // root.innerHTML: ver el comentario grande de #modals-portal, junto al
+  // <body>, sobre por que tenian que salir de ahi para quedar de verdad
+  // por encima del portal del video.
+  document.getElementById('modals-portal').innerHTML = renderConfigModal() + renderSubidaModal();
 
   if (firstPaint) hasAnimatedIn = true;
   fillCountUps();
