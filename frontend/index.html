@@ -1222,7 +1222,7 @@ function crearReproductorPersistente(portalId) {
       errorBox.hidden = true;
       video.src = src;
     },
-    ocultar() { portal.hidden = true; },
+    ocultar() { portal.hidden = true; video.pause(); },
     reposicionar(placeholderId) { if (!portal.hidden) posicionar(placeholderId); },
   };
 }
@@ -2814,6 +2814,18 @@ function render() {
 
   if (state.mostrandoInicio) {
     root.innerHTML = renderPantallaInicio();
+    // Bug real, encontrado en la practica: el boton ATRAS del navegador
+    // (ver popstate, al final del archivo) puede traer de vuelta la
+    // portada MIENTRAS un video seguia reproduciendose en el panel o en
+    // la comparacion. Como este `return` corta ANTES del bloque de mas
+    // abajo que llama a initVideoPlayer() (el unico que sabe
+    // mostrar/ocultar los portales), el <video> se quedaba flotando
+    // encima de la portada, en la posicion vieja de su placeholder -que
+    // ya ni siquiera existe, porque #root acaba de cambiar de contenido-
+    // y encima seguia sonando. Los dos portales se ocultan aqui a mano,
+    // en vez de confiar en que ya estuvieran ocultos.
+    reproductorA.ocultar();
+    reproductorB.ocultar();
     return;
   }
 
