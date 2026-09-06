@@ -93,11 +93,12 @@ function renderHeader() {
                 title="${state.darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}" aria-label="Cambiar modo claro/oscuro">
           ${icon(state.darkMode ? 'sun' : 'moon', 'w-3.5 h-3.5')}
         </button>
+        ${ES_DESPLIEGUE_PUBLICO ? '' : `
         <button type="button" data-action="open-settings"
                 class="p-0.5 hover:bg-[#EAEAEA] rounded text-[#57534E] hover:text-[#111111] transition-colors"
                 title="Configuración de conexión con la API" aria-label="Configuración de la API">
           ${icon('sliders', 'w-3.5 h-3.5')}
-        </button>
+        </button>`}
       </div>
     </div>
   </header>`;
@@ -215,10 +216,11 @@ function renderVideoSelector() {
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F3F2EF] hover:bg-[#EAEAEA] rounded-md border border-[#EAEAEA] text-xs font-semibold text-[#2F3437] transition-colors">
           ${icon('trending-up', 'w-3.5 h-3.5 text-[#1F6C9F]')} Comparar dos videos
         </button>
+        ${ES_DESPLIEGUE_PUBLICO ? '' : `
         <button type="button" data-action="abrir-subida" ${state.useMockMode ? 'disabled title="Apaga el Modo Datos de Demostración para subir un video: hace falta la API real."' : ''}
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F3F2EF] hover:bg-[#EAEAEA] rounded-md border border-[#EAEAEA] text-xs font-semibold text-[#2F3437] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
           ${icon('upload', 'w-3.5 h-3.5 text-[#346538]')} Subir video
-        </button>
+        </button>`}
         ${exportar}
         <button type="button" data-action="refresh-videos" ${state.isLoadingVideos ? 'disabled' : ''}
                 class="inline-flex items-center gap-1 text-xs font-medium text-[#1F6C9F] hover:text-[#18567D] disabled:opacity-50 transition-colors ml-auto sm:ml-0"
