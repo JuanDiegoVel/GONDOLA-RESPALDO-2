@@ -47,6 +47,21 @@ FRAMES_ENTRE_AVISOS = 25
 """Cada cuantos frames se informa del progreso. En CPU esto tarda y hay que
 saber que el proceso no se colgo."""
 
+TAMANO_LOTE = 3
+"""Frames que se le pasan a YOLO de una sola vez, en vez de uno por uno.
+
+Medido en CPU sobre video real (12th Gen Intel Core i5, sin GPU): de a un
+frame, ~8.2 fps; en lotes de 3, ~9.4 fps -unas 15% mas rapido-, con
+EXACTAMENTE las mismas detecciones (mismo modelo, mismos umbrales, ninguna
+perdida de calidad: es solo cuantas veces se llama a predict(), no que se
+le pida menos trabajo). Lotes mas grandes (4, 6, 8) no siguieron mejorando
+-e incluso empeoraron un poco- en esta maquina: yolo11n es un modelo tan
+chico que, pasado cierto punto, el overhead de Python por frame deja de
+ser el cuello de botella y agrandar el lote ya no ayuda. No se toco imgsz
+(640 por defecto) para ganar velocidad: se probo y perdia hasta el 38% de
+las detecciones reales en video con gente -inaceptable para lo que este
+sistema mide-, ver el commit que agrego este comentario."""
+
 
 @dataclass(frozen=True)
 class DeteccionCruda:
@@ -204,8 +219,28 @@ def _cargar_modelo(cfg: Config):
     return modelo, ids
 
 
-def _detectar_en_frame(modelo, frame, ids_persona: list[int], cfg: Config) -> Iterator[DeteccionCruda]:
-    """Pasa un frame por el modelo y entrega sus detecciones en crudo.
+def _en_lotes(iterable, tamano: int):
+    """Agrupa `iterable` en listas de a `tamano` elementos (la ultima puede
+    quedar mas corta). Generador puro, sin YOLO ni video: solo agrupa, no
+    consume el iterable de origen mas alla de lo que necesita para llenar
+    UN lote a la vez -sigue sin cargar el video completo en memoria."""
+    lote = []
+    for item in iterable:
+        lote.append(item)
+        if len(lote) == tamano:
+            yield lote
+            lote = []
+    if lote:
+        yield lote
+
+
+def _detectar_en_lote(
+    modelo, frames: list, ids_persona: list[int], cfg: Config
+) -> Iterator[list[DeteccionCruda]]:
+    """Pasa un LOTE de frames al modelo de una sola vez y entrega las
+    detecciones en crudo de CADA frame por separado, en el mismo orden que
+    `frames` -mas rapido en CPU que llamar a predict() una vez por frame,
+    ver TAMANO_LOTE-.
 
     `classes=ids_persona` hace que el propio modelo descarte todo lo que no sea
     una persona. Es mucho mas rapido que filtrarlo despues, y ademas significa
@@ -213,7 +248,7 @@ def _detectar_en_frame(modelo, frame, ids_persona: list[int], cfg: Config) -> It
     memoria.
     """
     resultados = modelo.predict(
-        frame,
+        frames,
         classes=ids_persona,
         conf=cfg.confidence_threshold,
         iou=cfg.iou_threshold,
@@ -222,51 +257,60 @@ def _detectar_en_frame(modelo, frame, ids_persona: list[int], cfg: Config) -> It
         verbose=False,
     )
     for resultado in resultados:
+        crudas = []
         for caja in resultado.boxes:
             class_id = int(caja.cls.item())
-            yield DeteccionCruda(
+            crudas.append(DeteccionCruda(
                 class_id=class_id,
                 class_name=str(modelo.names.get(class_id, "")),
                 confidence=float(caja.conf.item()),
                 xyxy=tuple(float(v) for v in caja.xyxy[0].tolist()),
-            )
+            ))
+        yield crudas
 
 
 def _eventos_del_video(
     modelo, ids_persona: list[int], video, cfg: Config,
     resumen: Resumen, renderer,
 ) -> Iterator[Event]:
-    """Recorre el video y entrega los eventos de a uno, sin acumularlos.
+    """Recorre el video EN LOTES de `TAMANO_LOTE` frames (una sola llamada a
+    YOLO por lote, ver _detectar_en_lote) y entrega los eventos de a uno, sin
+    acumular mas que un lote a la vez.
 
     Es un generador para que `write_events` los vaya escribiendo segun salen:
     un video de 10 minutos puede dar mas de 50.000 eventos.
     """
     info = video.info
-    for indice, timestamp, frame in video.frames(cfg.frame_stride, cfg.max_frames):
-        eventos_del_frame = []
-        for cruda in _detectar_en_frame(modelo, frame, ids_persona, cfg):
-            evento = construir_evento(
-                cruda, cfg.video_id, indice, timestamp, info.width, info.height
-            )
-            if evento is None:
-                if cruda.class_name.lower() != CLASE_PERSONA:
-                    resumen.descartadas_por_clase += 1
-                else:
-                    resumen.descartadas_por_caja += 1
-                continue
-            eventos_del_frame.append(evento)
+    frames_del_video = video.frames(cfg.frame_stride, cfg.max_frames)
+    for lote in _en_lotes(frames_del_video, TAMANO_LOTE):
+        imagenes_del_lote = [frame for _, _, frame in lote]
+        detecciones_del_lote = _detectar_en_lote(modelo, imagenes_del_lote, ids_persona, cfg)
 
-        resumen.frames_procesados += 1
-        resumen.detecciones_totales += len(eventos_del_frame)
-        if eventos_del_frame:
-            resumen.frames_con_personas += 1
+        for (indice, timestamp, frame), crudas in zip(lote, detecciones_del_lote):
+            eventos_del_frame = []
+            for cruda in crudas:
+                evento = construir_evento(
+                    cruda, cfg.video_id, indice, timestamp, info.width, info.height
+                )
+                if evento is None:
+                    if cruda.class_name.lower() != CLASE_PERSONA:
+                        resumen.descartadas_por_clase += 1
+                    else:
+                        resumen.descartadas_por_caja += 1
+                    continue
+                eventos_del_frame.append(evento)
 
-        renderer.write(frame, eventos_del_frame, indice, timestamp)
+            resumen.frames_procesados += 1
+            resumen.detecciones_totales += len(eventos_del_frame)
+            if eventos_del_frame:
+                resumen.frames_con_personas += 1
 
-        if resumen.frames_procesados % FRAMES_ENTRE_AVISOS == 0:
-            _avisar_progreso(resumen, indice, info)
+            renderer.write(frame, eventos_del_frame, indice, timestamp)
 
-        yield from eventos_del_frame
+            if resumen.frames_procesados % FRAMES_ENTRE_AVISOS == 0:
+                _avisar_progreso(resumen, indice, info)
+
+            yield from eventos_del_frame
 
 
 def _avisar_progreso(resumen: Resumen, indice: int, info) -> None:

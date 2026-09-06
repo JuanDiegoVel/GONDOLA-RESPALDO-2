@@ -227,11 +227,22 @@ def comando_run(cfg: Config) -> int:
     print("Ejecutando la cadena completa:", " -> ".join(pipeline.STAGE_NAMES))
     print()
     for nombre in pipeline.STAGE_NAMES:
+        # 'detect' renderiza su propio video si RENDER_MODE lo pide, pero ese
+        # archivo (<id>.detect.privacy.mp4) no lo sirve nadie: backend/api.py
+        # solo lee el de 'interact' (preferido) o el de 'track' (respaldo si
+        # interact fallara) -ver GET /videos/{id}/render-. Corriendo la
+        # cadena COMPLETA (no 'detect' suelto, donde SI sirve para
+        # inspeccionar la deteccion cruda antes de seguir) ese video es
+        # trabajo tirado: se codifica un .mp4 entero que nadie va a abrir. Se
+        # apaga aqui, no en detect.py, para no tocar el caso donde si se
+        # quiere ver.
+        cfg_etapa = replace(cfg, render_mode="none") if nombre == "detect" else cfg
+
         # Los errores se atrapan aqui, etapa por etapa, para poder decir DONDE
         # se detuvo la cadena. Si se dejaran subir hasta main(), el codigo de
         # salida seria correcto pero el mensaje de "se detiene en X" se perderia.
         try:
-            codigo = comando_etapa(nombre, cfg)
+            codigo = comando_etapa(nombre, cfg_etapa)
         except MissingInputError as exc:
             print()
             print(f"  FALTA UN REQUISITO:\n{exc}")
