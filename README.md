@@ -65,10 +65,11 @@ El razonamiento completo está en [architecture.md](docs/architecture.md).
 **Python para siete de las ocho piezas**, de la detección al backend. No
 usamos Java, Spring Boot, JPA, Maven, Gradle ni IntelliJ, y no hay nada de
 eso en el repositorio. El dashboard (`frontend/`) es la excepción, a
-propósito y por escrito: es un solo archivo HTML/JS sin build ni Node, para
-no obligar a nadie a instalar un segundo entorno solo para verlo funcionar.
-El razonamiento completo, incluida esa excepción, está en
-[architecture.md](docs/architecture.md) y en
+propósito y por escrito: es HTML/CSS/JS vanilla sin build ni Node (varios
+archivos organizados por responsabilidad, no un framework — `index.html`
+solo carga el resto), para no obligar a nadie a instalar un segundo
+entorno solo para verlo funcionar. El razonamiento completo, incluida esa
+excepción, está en [architecture.md](docs/architecture.md) y en
 [frontend/README.md](frontend/README.md).
 
 ---

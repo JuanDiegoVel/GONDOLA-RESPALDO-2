@@ -20,18 +20,30 @@ Las tres capas son Python:
 | Dashboard (`frontend/`) | **EXCEPCION, ver abajo** | Persona 8 |
 
 **`frontend/` es la unica excepcion a "todo Python", y esta documentada a
-proposito, no escondida.** Es HTML + CSS + JavaScript vanilla en un solo
-archivo (`frontend/index.html`), sin Node, sin build, sin `package.json`:
-se abre directo en el navegador y consume la API de la Persona 7 por
+proposito, no escondida.** Es HTML + CSS + JavaScript vanilla, sin Node,
+sin build, sin `package.json`: se abre directo en el navegador (doble clic
+sobre `frontend/index.html`) y consume la API de la Persona 7 por
 `fetch()`. Se hizo asi porque se diseno primero en React con ayuda de una
 IA y se prefirio portarlo a HTML/JS plano antes que arrastrar un segundo
-entorno (Node/npm) para las 8 personas. El detalle completo -que hace, que
-le falta, que instalar (nada; Tailwind ya va vendorizado dentro del propio
-archivo -no depende de que `cdn.tailwindcss.com` resuelva-, pero fuentes,
-iconos y el mapa de calor siguen en CDN sin version fijada), y una
-limitacion de CORS ya resuelta en `backend/api.py`-
-esta en [`frontend/README.md`](frontend/README.md). Si vas a seguir
-tocando el dashboard, lee ese archivo primero.
+entorno (Node/npm) para las 8 personas.
+
+"Sin build" no quiere decir "un solo archivo": `frontend/index.html` es
+solo la cascara (los `<link>`/`<script>` que carga), y el CSS/JS de verdad
+vive repartido en `frontend/css/estilos.css` y 14 archivos bajo
+`frontend/js/` (uno por responsabilidad: estado, cada vista, subir un
+video, etc.), cargados con `<script src="...">` **clasicos** -no modulos
+ES, que el navegador bloquea al abrir un archivo con `file://...`-. Siguen
+compartiendo un unico ambito global igual que si todo viviera en un solo
+`<script>`, asi que **el orden de esos `<script>` en `index.html`
+importa**: hay codigo de nivel superior que se ejecuta al cargar y espera
+que un archivo anterior ya haya corrido. El logo vive aparte
+(`frontend/assets/logo.png`) y Tailwind vendorizado tambien
+(`frontend/vendor/tailwindcss-3.4.17.js`, version fijada `3.4.17`, no
+depende de que `cdn.tailwindcss.com` resuelva). El detalle completo -que
+hace cada archivo, que instalar (nada; fuentes, iconos y el mapa de calor
+siguen en CDN sin version fijada, salvo heatmap.js), y CORS en
+`backend/api.py`- esta en [`frontend/README.md`](frontend/README.md). Si
+vas a seguir tocando el dashboard, lee ese archivo primero.
 
 **No se usa Java, Spring Boot, JPA, Maven, Gradle ni IntelliJ.** No hay una sola
 linea de eso en el repositorio y no debe aparecer ninguna. `backend/` ya

@@ -94,15 +94,19 @@ dashboard puede depurar el importador. Con dos lenguajes tendríamos dos
 ecosistemas, dos formas de empaquetar y dos mitades del equipo que no se pueden
 ayudar entre sí.
 
-**`frontend/` rompe esta regla, a propósito y por escrito.** Es un solo
-archivo HTML con CSS y JavaScript vanilla (`frontend/index.html`): sin
-Node, sin `npm install`, sin build. Se diseñó primero en React (con ayuda
-de una IA) y se portó a mano a HTML/JS plano para no obligar al equipo a
-instalar un segundo entorno — la parte que sí se sostiene de "un solo
-entorno que instalar" es que seguir sin necesitar Node en ninguna máquina.
-Lo que sí se pierde es que quien solo sabe Python no puede leer este
-archivo tan fácil como leería un `.py`. El detalle completo, las
-limitaciones y qué falta están en [`frontend/README.md`](../frontend/README.md).
+**`frontend/` rompe esta regla, a propósito y por escrito.** Es HTML con
+CSS y JavaScript vanilla: sin Node, sin `npm install`, sin build. Se
+diseñó primero en React (con ayuda de una IA) y se portó a mano a HTML/JS
+plano para no obligar al equipo a instalar un segundo entorno — la parte
+que sí se sostiene de "un solo entorno que instalar" es que sigue sin
+necesitar Node en ninguna máquina, aunque el código ya no vive en un solo
+archivo: `frontend/index.html` es solo la cáscara, y el CSS/JS de verdad
+se reparte en `frontend/css/` y 14 archivos bajo `frontend/js/` (uno por
+responsabilidad), cargados como `<script>` clásicos que comparten un
+único ámbito global. Lo que sí se pierde es que quien solo sabe Python no
+puede leer este código tan fácil como leería un `.py`. El detalle
+completo, las limitaciones y qué falta están en
+[`frontend/README.md`](../frontend/README.md).
 
 ---
 
