@@ -52,6 +52,12 @@ ZONES_DIR = RAIZ / "data" / "zones"
 OUTPUT_DIR = RAIZ / "data" / "output"
 AI_SERVICE_DIR = RAIZ / "ai-service"
 
+PREFIJO_VIDEO_SUBIDO = "subido_"
+"""Todo video_id que genera este modulo (ver `subir()`) empieza asi. Es la
+unica forma en la que el resto del sistema distingue "lo subio un usuario
+desde el dashboard" de "es uno de los videos de ejemplo ya en la base
+-`video_001`, `video_demo_merl_*`-": esos nunca llevan este prefijo."""
+
 # --------------------------------------------------------------------------
 # Limites del prevuelo. Son numeros con motivo, no gustos:
 # --------------------------------------------------------------------------
@@ -493,7 +499,7 @@ async def subir(
             detail="Hay que aceptar las condiciones de uso y declarar que el video es de una gondola antes de subirlo.",
         )
 
-    video_id = f"subido_{_sanear(file.filename or 'video')}_{datetime.now().strftime('%H%M%S')}"
+    video_id = f"{PREFIJO_VIDEO_SUBIDO}{_sanear(file.filename or 'video')}_{datetime.now().strftime('%H%M%S')}"
     VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
     destino = VIDEOS_DIR / f"{video_id}.mp4"
 

@@ -117,6 +117,17 @@ def test_borrar_un_video_no_toca_las_zonas_de_otro_video(video_importado, db_con
 
 
 def test_borrar_un_video_que_no_existe_da_404(_servidor_disponible):
-    respuesta = cliente.delete("/videos/video_que_no_existe")
+    # Con prefijo `subido_` para que pase el chequeo de "es un video
+    # subido" y llegue de verdad a comprobar que no existe en la base.
+    respuesta = cliente.delete("/videos/subido_video_que_no_existe")
     assert respuesta.status_code == 404
-    assert "video_que_no_existe" in respuesta.json()["detail"]
+    assert "subido_video_que_no_existe" in respuesta.json()["detail"]
+
+
+def test_borrar_un_video_de_ejemplo_sin_prefijo_subido_da_403(_servidor_disponible):
+    """`video_001`, `video_demo_merl_*`... no llevan el prefijo `subido_`
+    -son de ejemplo, no subidos por un usuario- y el endpoint debe
+    rechazar borrarlos aunque existan, sin tocar la base de datos."""
+    respuesta = cliente.delete("/videos/video_001")
+    assert respuesta.status_code == 403
+    assert "video_001" in respuesta.json()["detail"]

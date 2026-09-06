@@ -317,7 +317,22 @@ def eliminar_video(video_id: str) -> dict[str, Any]:
     confirmar antes de llamar a esto. Las filas de `zones` (los nombres de
     gondola/estante, compartidos entre videos que reusan la misma
     calibracion de camara) nunca se tocan: son del MOBILIARIO, no de este
-    video en concreto."""
+    video en concreto.
+
+    Solo se puede borrar un video SUBIDO por un usuario (`video_id` con el
+    prefijo `uploads.PREFIJO_VIDEO_SUBIDO`, ver `uploads.subir()`): los
+    videos de ejemplo (`video_001`, `video_demo_merl_*`) no llevan ese
+    prefijo y este endpoint los rechaza, aunque el dashboard ya oculta el
+    boton de borrar para ellos -es una segunda barrera por si alguien llama
+    a la API directo, no solo desde la interfaz."""
+    if not video_id.startswith(uploads.PREFIJO_VIDEO_SUBIDO):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"'{video_id}' es un video de ejemplo, no uno subido por un "
+                "usuario: no se puede borrar desde este endpoint."
+            ),
+        )
     with db.get_connection() as conn:
         borrado = db.delete_video(conn, video_id)
     if not borrado:

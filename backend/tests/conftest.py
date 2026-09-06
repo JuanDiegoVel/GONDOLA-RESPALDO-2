@@ -36,8 +36,13 @@ def _servidor_disponible() -> None:
 @pytest.fixture
 def video_id(_servidor_disponible) -> str:
     """Un video_id unico por test, para que dos tests no choquen entre si
-    y para poder borrarlo limpio al terminar (ver `_borrar_video` abajo)."""
-    return f"video_test_{uuid4().hex[:12]}"
+    y para poder borrarlo limpio al terminar (ver `_borrar_video` abajo).
+
+    Lleva el prefijo `subido_` (ver `uploads.PREFIJO_VIDEO_SUBIDO`) para que
+    se comporte como cualquier video real subido por un usuario -en
+    particular, para que `DELETE /videos/{id}` lo acepte en los tests que
+    prueban ese endpoint."""
+    return f"subido_video_test_{uuid4().hex[:12]}"
 
 
 @pytest.fixture
