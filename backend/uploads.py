@@ -279,6 +279,7 @@ def _revisar(ruta: Path) -> dict[str, Any]:
     mejor_frame_vacio: Any = None
     mejor_frame_lleno: Any = None
     menos_personas = 10**9
+    puntos_pies: list[dict[str, float]] = []
 
     for indice in indices:
         captura.set(cv2.CAP_PROP_POS_FRAMES, indice)
@@ -291,6 +292,19 @@ def _revisar(ruta: Path) -> dict[str, Any]:
             con_personas += 1
             if cuantas < menos_personas:
                 menos_personas, mejor_frame_lleno = cuantas, frame
+            # El punto de apoyo (centro del borde inferior de la caja, los
+            # pies) de cada persona vista en el prevuelo: mismo calculo que
+            # `BBox.support_point` en el contrato, pero calculado aqui a
+            # mano porque el prevuelo trabaja con cajas crudas de YOLO
+            # (xyxy), no con el contrato todavia -eso lo arma recien
+            # 'detect', que ni siquiera ha corrido-. Sirve de GUIA VISUAL
+            # en la pantalla de calibracion: en vez de adivinar donde para
+            # la gente frente al estante, quien calibra ve puntos de gente
+            # REAL de este mismo video. Coordenadas de pixeles del frame
+            # -no de nadie identificable, es literalmente un punto (x, y)-.
+            for caja in resultado.boxes:
+                x1, y1, x2, y2 = (float(v) for v in caja.xyxy[0].tolist())
+                puntos_pies.append({"x": round((x1 + x2) / 2, 1), "y": round(y2, 1)})
         elif mejor_frame_vacio is None:
             mejor_frame_vacio = frame
     captura.release()
@@ -299,6 +313,7 @@ def _revisar(ruta: Path) -> dict[str, Any]:
     medidas["frames_muestreados"] = len(indices)
     medidas["frames_con_personas"] = con_personas
     medidas["fraccion_con_personas"] = round(fraccion, 3)
+    medidas["puntos_pies"] = puntos_pies
 
     if fraccion < MIN_FRACCION_CON_PERSONAS:
         return {

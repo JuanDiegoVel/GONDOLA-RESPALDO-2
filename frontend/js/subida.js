@@ -167,6 +167,27 @@ function pintarLienzo() {
   const ctx = lienzo.getContext('2d');
   const escala = lienzo.width / imagenCalibracion.naturalWidth;
   ctx.drawImage(imagenCalibracion, 0, 0, lienzo.width, lienzo.height);
+
+  // Puntos de apoyo (pies) de la gente que el prevuelo YA vio en este mismo
+  // video (ver `puntos_pies` en backend/uploads.py), dibujados ANTES que
+  // los rectangulos -para que la persona vea donde camina la gente de
+  // verdad y dibuje la zona ENCIMA de esos puntos, en vez de adivinar
+  // mirando solo donde se ven los productos-. Pedido explicito: antes de
+  // esto, alguien calibrando a ojo podia marcar el estante (arriba del
+  // cuadro, en camara cenital) en vez del piso (mas abajo, donde estan los
+  // pies), y esa zona nunca hacia match con nadie -bug real, encontrado
+  // en la practica-.
+  const puntos = (state.subida.job && state.subida.job.detalles && state.subida.job.detalles.puntos_pies) || [];
+  puntos.forEach((p) => {
+    ctx.beginPath();
+    ctx.arc(p.x * escala, p.y * escala, 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(52,101,56,0.55)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
   state.subida.rects.forEach((r, i) => {
     ctx.strokeStyle = '#1F6C9F';
     ctx.lineWidth = 2;
@@ -347,12 +368,21 @@ function cuerpoSubida() {
                 class="p-1 rounded text-[#9F2F2D] hover:bg-[#9F2F2D]/10 shrink-0" aria-label="Borrar">${icon('x', 'w-3.5 h-3.5')}</button>
       </div>`).join('') : `<p class="text-[11px] text-[#787774]">Todavía no has dibujado ningún estante.</p>`;
 
+    const puntosPies = d.puntos_pies || [];
+    const guiaPies = puntosPies.length ? `
+      <p class="text-[11px] text-[#57534E] flex items-center gap-1.5">
+        <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:rgba(52,101,56,0.75);border:1px solid #fff;box-shadow:0 0 0 1px #34653880"></span>
+        Los puntos verdes son pies de gente real que la revisión previa ya detectó en este video: dibuja el estante
+        rodeándolos, no adivinando dónde crees que camina la gente.
+      </p>` : '';
+
     return `
       ${err}${aviso}
       <p class="text-xs text-[#2F3437] leading-relaxed">
         <strong>Arrastra sobre la imagen</strong> para marcar el <strong>área del piso</strong> por donde la gente camina
         frente a cada estante (no los productos: a las personas se las ubica por los pies). Puedes marcar hasta 4.
       </p>
+      ${guiaPies}
       <div class="rounded-lg border border-[#EAEAEA] overflow-hidden bg-[#F3F2EF]">
         <canvas id="lienzo-zonas" class="block w-full cursor-crosshair"></canvas>
       </div>
