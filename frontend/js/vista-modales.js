@@ -143,10 +143,10 @@ function renderPantallaInicio() {
       <img src="${LOGO_SPLASH}" alt="Góndola Inteligente" class="mx-auto w-40 sm:w-48 h-auto drop-shadow-sm" />
 
       <div class="space-y-2">
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-[#111111]">Góndola Inteligente</h1>
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-[#111111]">CodeBolts</h1>
         <p class="text-sm text-[#57534E] leading-relaxed">
           Analiza video de cámaras de tienda para entender cómo se mueven los clientes
-          frente a una góndola — cuántos pasan, dónde se detienen y qué productos tocan —
+          frente a una góndola: cuántos pasan, dónde se detienen y qué productos tocan,
           sin identificar a ninguna persona.
         </p>
       </div>
