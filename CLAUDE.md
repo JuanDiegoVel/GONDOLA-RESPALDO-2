@@ -171,9 +171,15 @@ correr los tests sin descargar 3 GB de PyTorch. Lo pesado va en
 - **Fase 8 (hecha, primera version):** dashboard (Persona 8, `frontend/`):
   resumen por video, analisis por zona/estante, mapa de calor real por
   coordenadas, video anonimizado embebido, comparacion completa de dos
-  videos, retroalimentacion automatica, exportar a PDF/Excel. Falta el
-  motor de recomendaciones con nivel de confianza y la optimizacion *edge*/
-  Docker. Ver `frontend/README.md`.
+  videos, retroalimentacion automatica, exportar a PDF/Excel, modo oscuro.
+  Falta el motor de recomendaciones con nivel de confianza. Ver
+  `frontend/README.md`.
+- **Viabilidad edge (hecha):** el pipeline SI corre completo en un equipo
+  modesto de tienda (CPU, sin GPU), sin mandar nada a la nube -medido con
+  numeros reales de 6 corridas, no una estimacion-. Ver
+  `docs/edge-viability.md`: ~18 fps de procesamiento en un i5 de laptop
+  (~1.6x mas lento que tiempo real en modo batch, mas rapido que tiempo
+  real con `FRAME_STRIDE=2`).
 
 Hay 6 videos reales ya importados y visibles en el dashboard **de quien
 corrio el pipeline** -esto vive en el volumen de Docker de esa maquina, no

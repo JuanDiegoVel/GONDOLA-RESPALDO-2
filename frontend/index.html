@@ -350,11 +350,16 @@ function calculateRejectionRate(putBack, pickUp) {
 // video real nuevo (ver frontend/README.md, seccion de datos MERL).
 const VIDEOS_REALES_CONOCIDOS = new Set([
   'video_001',
-  'video_002',
-  'video_003',
-  'video_004',
-  'video_005',
-  'video_006',
+  // 'video_002'..'video_006': la nueva convencion de nombres, con
+  // calibracion de zonas propia (ver data/zones/video_002.json..006.json),
+  // para cuando los clips del MERL Shopping Dataset se (re)importen bajo
+  // este esquema. 'video_demo_merl_*': el nombre viejo con el que ESTOS
+  // MISMOS clips ya estan importados en algunas maquinas (la mia incluida)
+  // -sin renombrar la base de datos de nadie, se listan los dos hasta que
+  // todo el equipo re-importe con los nombres nuevos-.
+  'video_002', 'video_003', 'video_004', 'video_005', 'video_006',
+  'video_demo_merl_24_3', 'video_demo_merl_15_3', 'video_demo_merl_39_1',
+  'video_demo_merl_18_3', 'video_demo_merl_36_1',
 ]);
 
 function isDemoVideo(videoId) {
