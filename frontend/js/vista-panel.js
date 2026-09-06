@@ -63,29 +63,29 @@ function renderHeader() {
   }
 
   return `
-  <header class="flex items-center justify-between px-4 sm:px-6 py-3 bg-white border-b border-[#EAEAEA] min-h-16 shrink-0 sticky top-0 z-30 shadow-xs">
-    <div class="flex items-center gap-3">
+  <header class="flex flex-wrap items-center justify-between gap-y-2 px-4 sm:px-6 py-3 bg-white border-b border-[#EAEAEA] min-h-16 shrink-0 sticky top-0 z-30 shadow-xs">
+    <div class="flex items-center gap-3 min-w-0">
       <button type="button" data-action="volver-inicio"
               class="p-2 -ml-1 rounded-lg text-[#57534E] hover:text-[#111111] hover:bg-[#F3F2EF] transition-colors shrink-0"
               title="Volver a la portada" aria-label="Volver a la portada">
         ${icon('arrow-left', 'w-4 h-4')}
       </button>
-      <img src="${LOGO_SPLASH}" alt="Góndola Inteligente" class="h-14 w-auto shrink-0" />
-      <div>
+      <img src="${LOGO_SPLASH}" alt="Góndola Inteligente" class="h-10 sm:h-14 w-auto shrink-0" />
+      <div class="min-w-0">
         <div class="flex items-baseline gap-2">
-          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-[#111111]">CodeBolts</h1>
-          <span class="text-[11px] font-medium text-[#787774]">v2.4.0</span>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-[#111111] truncate">CodeBolts</h1>
+          <span class="text-[11px] font-medium text-[#787774] hidden sm:inline">v2.4.0</span>
         </div>
-        <p class="text-[11px] text-[#787774] hidden sm:block">Góndola Inteligente · Métricas de flujo, permanencia y planogramas</p>
+        <p class="text-[11px] text-[#787774] hidden sm:block truncate">Góndola Inteligente · Métricas de flujo, permanencia y planogramas</p>
       </div>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 shrink-0">
       <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EDF3EC] text-[#346538] border border-[#C7D6C5] text-xs font-semibold"
            title="El sistema no realiza reconocimiento facial ni almacena datos personales de clientes.">
         ${icon('shield-check', 'w-3.5 h-3.5 text-[#346538] shrink-0')}
         <span>100% Anónimo · Sin Biometría</span>
       </div>
-      <div class="flex items-center gap-2 px-3 py-1.5 bg-[#F3F2EF] rounded-md border border-[#EAEAEA] text-xs">
+      <div class="flex items-center gap-2 px-3 py-1.5 bg-[#F3F2EF] rounded-md border border-[#EAEAEA] text-xs shrink-0 whitespace-nowrap">
         ${statusHtml}
         <div class="h-3 w-px bg-[#D6D3D1]"></div>
         <button type="button" data-action="toggle-dark-mode"
