@@ -647,13 +647,14 @@ const SUBIDA_VACIA = () => ({
 const state = {
   // Pantalla de bienvenida: lo primero que se ve al abrir el archivo,
   // antes de tocar la API o el modo demo. Se apaga con el boton "Entrar
-  // al panel" (ver renderPantallaInicio), y con #/inicio y #/panel en la
-  // URL (ver sincronizarConHash() al final del archivo) el boton ATRAS del
-  // navegador vuelve a la portada en vez de sacar de la pagina -bug real,
-  // reportado por un companero de equipo-. Si la pagina se abre ya con
-  // #/panel en la URL (recargada, o un enlace guardado), arranca directo
-  // ahi, sin portada.
-  mostrandoInicio: location.hash !== '#/panel',
+  // al panel" (ver renderPantallaInicio), y con #/inicio, #/panel y
+  // #/comparar en la URL (ver el listener de 'popstate', al final del
+  // archivo) el boton ATRAS del navegador navega entre esas tres
+  // pantallas en vez de sacar de la pagina -bug real, reportado por un
+  // companero de equipo-. Si la pagina se abre ya con #/panel o
+  // #/comparar en la URL (recargada, o un enlace guardado), arranca
+  // directo ahi, sin portada.
+  mostrandoInicio: location.hash !== '#/panel' && location.hash !== '#/comparar',
   // Modo oscuro: se recuerda por navegador (localStorage). Si nunca se ha
   // tocado el interruptor, se sigue la preferencia del sistema operativo
   // (prefers-color-scheme) en vez de forzar claro para todos.
@@ -684,7 +685,12 @@ const state = {
   // video -el mismo <video> vivo se ocultaba y mostraba sin avisarle al
   // navegador, y a veces la carga en curso se perdia-. Con vistas
   // separadas cada una tiene su propio hueco para el video, sin pisarse.
-  mostrandoComparacion: false,
+  // #/comparar tiene su PROPIA ruta en el hash (distinta de #/panel):
+  // antes las dos compartian #/panel, y el boton ATRAS desde comparar
+  // saltaba directo a la portada sin pasar por el video unico -pedido
+  // explicito, para que el historial del navegador distinga las tres
+  // pantallas de verdad-.
+  mostrandoComparacion: location.hash === '#/comparar',
   // Cada slot (A/B) trae el mismo paquete completo de datos que trae el
   // video principal (loadVideoDetail/loadVideoMetrics/loadZoneHierarchy/
   // loadPositions), para poder mostrar TODO -resumen, zonas, mapa de
@@ -2946,7 +2952,13 @@ document.addEventListener('click', async (e) => {
     // -antes sacaba de la pagina entera, porque nunca se habia agregado
     // nada al historial-.
     history.pushState(null, '', '#/panel');
-    setState({ mostrandoInicio: false });
+    // mostrandoComparacion:false a mano, no solo mostrandoInicio: si la
+    // persona habia entrado antes a comparar y volvio a la portada con
+    // ATRAS, ese valor se queda en true en el estado -volver a la portada
+    // no lo resetea, solo esconde los videos, ver el comentario grande de
+    // mas arriba-. Sin este reseteo, el hash diria #/panel pero por dentro
+    // se seguiria mostrando la comparacion: hash y pantalla desincronizados.
+    setState({ mostrandoInicio: false, mostrandoComparacion: false });
   }
   else if (action === 'exportar-pdf') window.print();
   else if (action === 'exportar-csv') exportarCSV();
@@ -2965,10 +2977,18 @@ document.addEventListener('click', async (e) => {
   else if (action === 'zones-view-table') setState({ zonesViewMode: 'table' });
   else if (action === 'zones-view-cards') setState({ zonesViewMode: 'cards' });
   else if (action === 'abrir-comparacion') {
+    // pushState, no solo setState: #/comparar es su PROPIA entrada de
+    // historial, distinta de #/panel (ver el comentario de
+    // mostrandoComparacion en el estado inicial) -asi ATRAS desde
+    // comparar vuelve al video unico, no salta directo a la portada.
+    history.pushState(null, '', '#/comparar');
     setState({ mostrandoComparacion: true });
     if (!state.compareA && state.selectedVideoId) loadCompareData('A', state.selectedVideoId);
   }
-  else if (action === 'cerrar-comparacion') setState({ mostrandoComparacion: false });
+  else if (action === 'cerrar-comparacion') {
+    history.pushState(null, '', '#/panel');
+    setState({ mostrandoComparacion: false });
+  }
   else if (action === 'abrir-subida') abrirSubida();
   else if (action === 'subida-cerrar') cerrarSubida();
   else if (action === 'subida-reiniciar') abrirSubida();
@@ -3039,21 +3059,26 @@ document.addEventListener('change', (e) => {
   }
 });
 
-// #/inicio y #/panel: si se abre sin hash (el caso normal, doble clic en
-// el archivo), se deja #/inicio de una vez como punto de partida del
-// historial -asi el ATRAS desde el panel tiene una entrada real a la que
-// volver, no una URL vacia-. replaceState, no pushState: es la carga
-// inicial, no una navegacion, asi que no debe crear una entrada nueva.
+// #/inicio, #/panel y #/comparar: si se abre sin hash (el caso normal,
+// doble clic en el archivo), se deja #/inicio de una vez como punto de
+// partida del historial -asi el ATRAS desde el panel tiene una entrada
+// real a la que volver, no una URL vacia-. replaceState, no pushState: es
+// la carga inicial, no una navegacion, asi que no debe crear una entrada
+// nueva.
 if (!location.hash) history.replaceState(null, '', '#/inicio');
 
-// ATRAS/ADELANTE del navegador entre #/inicio y #/panel: sincroniza el
+// ATRAS/ADELANTE del navegador entre las tres pantallas: sincroniza el
 // estado con lo que diga el hash AHORA, sin volver a empujar nada al
-// historial (eso ya lo hizo pushState en 'entrar-panel', o el navegador
-// mismo al navegar) -si se llamara a setState() con un pushState adentro
-// aqui, cada ATRAS empujaria una entrada NUEVA en vez de usar la que ya
-// existia, y el boton quedaria atascado sin poder salir nunca.
+// historial (eso ya lo hizo pushState en 'entrar-panel'/'abrir-comparacion'/
+// 'cerrar-comparacion', o el navegador mismo al navegar) -si se llamara a
+// setState() con un pushState adentro aqui, cada ATRAS empujaria una
+// entrada NUEVA en vez de usar la que ya existia, y el boton quedaria
+// atascado sin poder salir nunca.
 window.addEventListener('popstate', () => {
-  setState({ mostrandoInicio: location.hash !== '#/panel' });
+  setState({
+    mostrandoInicio: location.hash !== '#/panel' && location.hash !== '#/comparar',
+    mostrandoComparacion: location.hash === '#/comparar',
+  });
 });
 
 render();

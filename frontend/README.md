@@ -95,11 +95,19 @@ archivo, ~2900 líneas). Se dice en voz alta en vez de esconderlo:
   PROPIO contexto de apilamiento: cualquier `z-index` de un modal de
   adentro (`z-50`, lo que sea) queda atrapado ahí, comparándose solo
   contra otros hijos de `#root`, nunca contra un HERMANO como el portal-.
-  Arreglado bajando el portal a `z-index:0` (por debajo de `#root`).
+  La solución real no era bajar el video (eso lo escondía detrás del
+  fondo opaco de su propio placeholder, otro bug real, ya visto en
+  pantalla): es sacar los MODALES a su propio portal (`#modals-portal`,
+  hermano de `#root`, `z-index:20`) por encima del video (`z-index:5`).
 - Botón "Atrás" del navegador: antes sacaba de la página entera (nunca se
-  agregaba nada al historial). Ahora `#/inicio` y `#/panel` en la URL,
-  con `history.pushState()` al entrar al panel, le dan al navegador una
-  entrada real a la que volver.
+  agregaba nada al historial). Ahora `#/inicio`, `#/panel` y `#/comparar`
+  son tres rutas de verdad en la URL, con `history.pushState()` en cada
+  transición -entrar al panel, abrir/cerrar la comparación-, así que el
+  navegador tiene una entrada real a la que volver en cada paso, en vez
+  de saltar directo a la portada desde cualquier pantalla. Antes
+  comparar compartía la misma ruta (`#/panel`) que el video único; se
+  separó a pedido explícito, para que el historial distinga las tres
+  pantallas.
 - "Retroalimentación": explica en lenguaje llano por qué salen ciertos
   números (tasas en 0%, conteos que no cuadran, video demasiado corto),
   sin tener que ver el video completo. Reglas simples sobre los números ya
