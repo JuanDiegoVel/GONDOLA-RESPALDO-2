@@ -70,7 +70,7 @@ function renderHeader() {
               title="Volver a la portada" aria-label="Volver a la portada">
         ${icon('arrow-left', 'w-4 h-4')}
       </button>
-      <img src="${LOGO_SPLASH}" alt="Góndola Inteligente" class="h-12 w-auto shrink-0" />
+      <img src="${LOGO_SPLASH}" alt="Góndola Inteligente" class="h-14 w-auto shrink-0" />
       <div>
         <div class="flex items-baseline gap-2">
           <h1 class="text-lg sm:text-xl font-bold tracking-tight text-[#111111]">CodeBolts</h1>

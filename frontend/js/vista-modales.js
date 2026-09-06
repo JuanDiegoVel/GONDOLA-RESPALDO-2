@@ -140,7 +140,7 @@ function renderPantallaInicio() {
   return `
   <div class="min-h-screen flex items-center justify-center px-4 py-10">
     <div class="max-w-xl w-full text-center space-y-6">
-      <img src="${LOGO_SPLASH}" alt="Góndola Inteligente" class="mx-auto w-40 sm:w-48 h-auto drop-shadow-sm" />
+      <img src="${LOGO_SPLASH}" alt="Góndola Inteligente" class="mx-auto w-52 sm:w-64 h-auto drop-shadow-sm" />
 
       <div class="space-y-2">
         <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-[#111111]">CodeBolts</h1>
