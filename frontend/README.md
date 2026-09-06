@@ -20,7 +20,7 @@ dashboard.
 
 El resto del proyecto es Python de punta a punta, y este archivo es la
 excepción — es HTML + CSS + JavaScript vanilla (`index.html`, un solo
-archivo, ~2400 líneas). Se dice en voz alta en vez de esconderlo:
+archivo, ~2900 líneas). Se dice en voz alta en vez de esconderlo:
 
 - Se diseñó primero en React (con ayuda de una IA, a partir de un prompt que
   describe el contrato exacto de la API), y después se portó a mano a
@@ -44,10 +44,18 @@ archivo, ~2400 líneas). Se dice en voz alta en vez de esconderlo:
   La etiqueta NO se basa en el prefijo del `video_id` (se rompía con videos
   reales importados como `video_demo_merl_*`, del dataset MERL Shopping
   Dataset): en modo demo usa el prefijo `video_demo_`, conectado a la API
-  real usa una lista explícita de los videos que sí pasaron por el pipeline
-  (`VIDEOS_REALES_CONOCIDOS` en `index.html`) — todo lo demás que devuelva
-  la API pero no esté ahí (fixtures viejos armados a mano, como
-  `video_demo_001`/`video_demo_002`) también se etiqueta "PRUEBA".
+  real es al revés -una lista corta y fija de los DOS `video_id` ficticios
+  de `backend/database/seed_example.sql` (`VIDEOS_DE_PRUEBA_CONOCIDOS` en
+  `index.html`)-, así que cualquier video que de verdad pasó por el
+  pipeline se etiqueta "Real" sin que nadie tenga que mantener una lista
+  cada vez que alguien procesa uno nuevo.
+- Subir un video desde el propio navegador (botón "Subir video"): sube el
+  archivo, el servidor lo revisa (abre, dura entre 5 s y 15 min, YOLO
+  encuentra personas), la persona dibuja los estantes sobre un fotograma
+  sin gente, y desde ahí la API lanza sola la cadena completa y lo importa
+  -sin tocar la terminal ni copiar archivos a mano-. Ver
+  `backend/uploads.py` y la sección "Subida de video" de
+  `backend/README.md`.
 - Resumen general (personas, interacciones, pick-ups, put-backs, tasa de
   rechazo, permanencia media), con los números animados al cargar (cuentan
   hacia arriba, no aparecen de golpe).
@@ -61,7 +69,8 @@ archivo, ~2400 líneas). Se dice en voz alta en vez de esconderlo:
   original) y pinta una densidad continua con [heatmap.js](https://www.patrick-wied.at/static/heatmapjs/)
   (CDN), no un agregado coloreado por zona. Cada punto se reescala del
   tamaño del frame original al tamaño en pantalla del contenedor
-  (`initPositionsHeatmap()` en `index.html`). Debajo sigue el "Resumen por
+  (`pintarHeatmap()` en `index.html`, con 4 estilos intercambiables y una
+  animación de "parpadeo" por punto, además de modo oscuro). Debajo sigue el "Resumen por
   Zona" (antes se llamaba "Mapa de Calor de Zonas"): tarjetas por
   góndola/estante y el ranking de interacción — sigue siendo útil como
   agregado, pero ya no es lo único que hay.

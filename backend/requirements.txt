@@ -12,5 +12,13 @@ fastapi==0.141.1          # API REST
 uvicorn[standard]==0.52.4 # servidor ASGI para correr la API
 psycopg[binary]==3.3.5    # cliente de PostgreSQL
 python-dotenv==1.2.3      # lectura del .env de la raiz del repositorio
+python-multipart==0.0.32  # subida de archivos (uploads.py); FastAPI lo exige para multipart/form-data
 pytest==9.1.1             # tests
 httpx==0.28.1             # cliente HTTP usado por los tests de la API (TestClient)
+
+# NOTA: uploads.py tambien usa opencv-python y ultralytics para el prevuelo,
+# pero NO se declaran aqui a proposito: son las dependencias PESADAS del
+# ai-service (requirements.txt de la raiz, ~3 GB con PyTorch). Se importan
+# dentro de la funcion que las usa, asi que la API arranca y sus tests corren
+# sin ellas; solo hace falta instalarlas en la maquina que procese videos,
+# que es la misma que corre el pipeline.

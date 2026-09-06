@@ -59,6 +59,31 @@ Todo esto sale de PostgreSQL, **excepto** `/render`, que sirve un archivo
 estático de `data/output/` (ver el comentario de `RENDER_DIR` en `api.py`)
 — es la única excepción a "esta capa solo lee de la base de datos".
 
+### Subida de video desde el dashboard (`backend/uploads.py`)
+
+La ÚNICA parte de esta API que escribe -por eso vive en su propio módulo,
+ver la sección CORS abajo-. Deja que alguien suba un video sin tocar la
+terminal ni copiar archivos a mano: sube el archivo, el servidor revisa
+que sea apto (abre, dura entre 5 s y 15 min, YOLO encuentra personas),
+la persona dibuja los estantes sobre un fotograma sin gente, y desde ahí
+la API lanza sola la cadena completa (`detect → track → zones → interact →
+metrics`) y la importa. `frontend/index.html` lo usa desde el botón
+"Subir video" del panel principal.
+
+| Método y ruta | Qué hace |
+|---|---|
+| `POST /uploads` | Recibe el archivo (multipart) + dos booleanos de condiciones de uso. Rechaza sin guardar nada si faltan. Arranca el prevuelo en un hilo aparte y devuelve un `job_id` |
+| `GET /uploads/{job_id}` | Estado del trabajo (`revisando` → `esperando_zonas` → `procesando` → `listo`, o `rechazado`/`error`). El dashboard lo sondea cada 2 s |
+| `GET /uploads/{job_id}/frame` | El fotograma de fondo para calibrar (sin personas, si el video tuvo alguno así) |
+| `POST /uploads/{job_id}/zones` | Recibe los rectángulos dibujados, escribe `data/zones/<video_id>.json` y lanza la cadena completa como subproceso |
+
+Los trabajos viven en memoria (`uploads._TRABAJOS`): reiniciar la API
+pierde los que estén a medias, a propósito — se usa de a un video por vez,
+no hace falta persistirlo. Necesita `opencv-python` y `ultralytics` (las
+mismas del `ai-service`) solo para el prevuelo; por eso no van en
+`backend/requirements.txt` (ver la nota en ese archivo) y se importan
+dentro de la función que las usa.
+
 ## Configuración (`backend/.env`)
 
 Vive **aparte** del `.env` de la raíz (el del AI Service) a propósito: hay
@@ -73,12 +98,18 @@ más — meter `DATABASE_URL` ahí lo rompería.
 
 ## CORS
 
-`allow_origins=["*"]` a propósito: `frontend/index.html` es un archivo
-suelto que el navegador abre con `file://...`, y eso manda `Origin: null`
-en cada `fetch()` — sin CORS abierto, el navegador bloquea la respuesta
-aunque la API la haya procesado bien. Es aceptable porque esta API corre en
-la red local de la tienda, nunca expuesta a internet: no hay credenciales
-que proteger ni un origen externo del que cuidarse.
+Una lista de orígenes (`ORIGENES_PERMITIDOS` en `api.py`), no `"*"`.
+`frontend/index.html` es un archivo suelto que el navegador abre con
+`file://...`, y eso manda `Origin: null` en cada `fetch()` — sin CORS
+abierto, el navegador bloquea la respuesta aunque la API la haya procesado
+bien. Antes esto era `allow_origins=["*"]`, aceptable cuando la API solo
+respondía datos (puros `GET`). Desde que existe `/uploads` (escribe: guarda
+un video, lanza el pipeline) `"*"` dejaría que cualquier página que alguien
+de la tienda visitara en su navegador disparara esos endpoints contra
+`127.0.0.1` sin que la persona se enterara — "no está expuesta a internet"
+protege al *servidor*, no al *navegador* que lo consulta. Ahora solo se
+aceptan `null` (el dashboard como archivo) y `localhost`/`127.0.0.1` (el
+dashboard servido por HTTP).
 
 ## Videos reales importados hoy
 

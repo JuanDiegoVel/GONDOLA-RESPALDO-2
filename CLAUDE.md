@@ -166,12 +166,18 @@ correr los tests sin descargar 3 GB de PyTorch. Lo pesado va en
   `metrics` (Persona 6, agrega por gondola Y por estante)-. Todas
   implementadas, sin placeholders. Ver `ai-service/gondola/stages/README.md`.
 - **Fase 7 (hecha):** importador idempotente y API REST (Persona 7,
-  `backend/`) -incluye posiciones para un mapa de calor real y el video
-  renderizado servido por HTTP-. Ver `backend/README.md`.
+  `backend/`) -incluye posiciones para un mapa de calor real, el video
+  renderizado servido por HTTP, y `backend/uploads.py`: subir un video
+  desde el propio dashboard (prevuelo con YOLO, calibracion de zonas
+  dibujada en el navegador, y desde ahi la API lanza sola la cadena
+  completa y la importa). CORS ya no es `allow_origins=["*"]`: desde que
+  hay endpoints que ESCRIBEN, es una lista de origenes (`null` +
+  localhost)-. Ver `backend/README.md`.
 - **Fase 8 (hecha, primera version):** dashboard (Persona 8, `frontend/`):
   resumen por video, analisis por zona/estante, mapa de calor real por
-  coordenadas, video anonimizado embebido, comparacion completa de dos
-  videos, retroalimentacion automatica, exportar a PDF/Excel, modo oscuro.
+  coordenadas (con estilos intercambiables), video anonimizado embebido,
+  comparacion completa de dos videos, retroalimentacion automatica,
+  exportar a PDF/Excel, modo oscuro, subir video desde el navegador.
   Falta el motor de recomendaciones con nivel de confianza. Ver
   `frontend/README.md`.
 - **Viabilidad edge (hecha):** el pipeline SI corre completo en un equipo

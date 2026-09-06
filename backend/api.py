@@ -22,17 +22,23 @@ fase/persona (Persona 8 consume esta API, no le pega a la base de datos por
 su cuenta: ver docs/architecture.md, seccion "Personas 7 y 8"). Esta API
 solo expone datos.
 
-CORS: POR QUE ESTA ABIERTO A CUALQUIER ORIGEN
+CORS: POR QUE UNA LISTA DE ORIGENES, NO "*"
 -----------------------------------------------
 `frontend/index.html` es un archivo HTML suelto (sin build, sin servidor
 propio) que la Persona 8 abre directo con el navegador (`file://...`). Un
 navegador que abre un archivo local manda `Origin: null` en sus peticiones
 `fetch()`, y sin `CORSMiddleware` el navegador BLOQUEA la respuesta aunque
 la API la haya procesado bien -el bloqueo es del lado del navegador, no de
-este servidor-. `allow_origins=["*"]` es aceptable aqui porque esto es una
-API que corre en la propia tienda, en la red local, nunca expuesta a
-internet: no hay credenciales que proteger ni un origen externo del que
-cuidarse.
+este servidor-.
+
+Antes esto era `allow_origins=["*"]`, aceptable cuando la API solo
+RESPONDIA datos (puros GET). Desde que existe `uploads.py` (Persona 7) hay
+endpoints que ESCRIBEN -guardan un video, lanzan el pipeline-, y con "*"
+cualquier pagina que alguien de la tienda visitara en su navegador podia
+dispararlos contra `127.0.0.1` sin que la persona se enterara: "esto no
+sale a internet" no protege de eso, el navegador si sale a internet.
+`ORIGENES_PERMITIDOS` (mas abajo) solo deja pasar `null` (el dashboard como
+archivo) y `localhost`/`127.0.0.1` (el dashboard servido por HTTP).
 """
 
 from __future__ import annotations
@@ -82,12 +88,23 @@ RENDER_DIR = Path(
     or (Path(__file__).resolve().parent.parent / "data" / "output")
 )
 
+# NO es "*" a proposito -ver el docstring de arriba, seccion CORS-.
+# `null` es el Origin que manda un archivo abierto con file://, que es como
+# se usa el dashboard. Los localhost cubren servirlo por HTTP.
+ORIGENES_PERMITIDOS = r"^(null|http://(localhost|127\.0\.0\.1)(:\d+)?)$"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_origin_regex=ORIGENES_PERMITIDOS,
+    allow_methods=["GET", "POST"],  # POST desde que existe uploads.py
     allow_headers=["*"],
 )
+
+# En su propio modulo por ser la unica parte de esta API que ESCRIBE (sube
+# un video, dibuja zonas, lanza el pipeline): ver backend/uploads.py.
+import uploads  # noqa: E402  (despues de crear `app`, a proposito)
+
+app.include_router(uploads.router)
 
 
 @app.get("/", include_in_schema=False)
