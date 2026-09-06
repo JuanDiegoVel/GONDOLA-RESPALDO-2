@@ -63,6 +63,19 @@ def test_resumen_de_video_cuenta_personas_distintas(video_importado):
     assert cuerpo["put_back_count"] == 0
 
 
+def test_permanencia_media_promedia_personas_no_filas_de_evento(video_importado):
+    """Bug real: `AVG(dwell_time_s)` a secas promedia FILAS DE EVENTO (un
+    evento por frame, con `dwell_time_s` ACUMULADO que crece en cada uno),
+    no personas -sesgaba el numero hacia la mitad del tiempo real. Con los
+    eventos de `_preparar_archivos` (track 1: dwell 1.0, 2.0, 3.0; track 2:
+    dwell 0.5; track 3: sin dwell): el promedio correcto es sobre el
+    MAXIMO de cada track_id -(3.0 + 0.5) / 2 = 1.75-, no sobre las 4 filas
+    con dwell -(1.0+2.0+3.0+0.5)/4 = 1.625-."""
+    respuesta = cliente.get(f"/videos/{video_importado}")
+    assert respuesta.status_code == 200
+    assert respuesta.json()["average_dwell_time_s"] == pytest.approx(1.75)
+
+
 def test_metricas_del_video_devuelve_una_fila_por_zona(video_importado):
     respuesta = cliente.get(f"/videos/{video_importado}/metrics")
     assert respuesta.status_code == 200

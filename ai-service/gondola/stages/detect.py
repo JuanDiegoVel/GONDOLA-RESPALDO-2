@@ -316,6 +316,8 @@ def run(cfg: Config, abrir_video: bool = False) -> int:
         # comprobar que las cajas caben y que los timestamps cuadran.
         dimensiones = (video.info.width, video.info.height)
         fps_video = video.info.fps
+        frame_count_video = video.info.frame_count
+        duration_s_video = video.info.duration_s
 
         inicio = time.perf_counter()
         with Renderer(video_salida, cfg.render_mode, video.info.width,
@@ -329,7 +331,8 @@ def run(cfg: Config, abrir_video: bool = False) -> int:
     fps_procesamiento = resumen.frames_procesados / transcurrido if transcurrido > 0 else 0.0
     ruta_resumen = pipeline.summary_path("detect", cfg)
     _escribir_resumen(ruta_resumen, cfg, resumen, fps_procesamiento, transcurrido,
-                      nombre_modelo, dimensiones, fps_video)
+                      nombre_modelo, dimensiones, fps_video, frame_count_video,
+                      duration_s_video)
 
     _imprimir_resultado(resumen, escritos, transcurrido, fps_procesamiento, cfg,
                         rutas.output_path, ruta_resumen, video_salida)
@@ -343,8 +346,18 @@ def run(cfg: Config, abrir_video: bool = False) -> int:
 def _escribir_resumen(destino: Path, cfg: Config, resumen: Resumen,
                       fps_procesamiento: float, transcurrido: float,
                       nombre_modelo: str, dimensiones: tuple[int, int],
-                      fps_video: float) -> None:
-    """Guarda las metricas de la corrida. Sin esto no se puede comparar nada."""
+                      fps_video: float, frame_count_video: int,
+                      duration_s_video: float) -> None:
+    """Guarda las metricas de la corrida. Sin esto no se puede comparar nada.
+
+    `frame_count`/`duration_s` son los del VIDEO COMPLETO (de
+    `VideoReader.info`, via `cv2.CAP_PROP_FRAME_COUNT`), no de cuantos
+    frames se procesaron (`results.frames_procesados`, que puede ser menor
+    por `FRAME_STRIDE`/`MAX_FRAMES`) ni de donde hubo detecciones: el
+    importador del backend (Persona 7) los prefiere sobre inferirlos del
+    ultimo evento del .jsonl, que salia corto cuando el video terminaba con
+    el pasillo vacio -bug real, encontrado en la practica-.
+    """
     promedio = (
         resumen.detecciones_totales / resumen.frames_procesados
         if resumen.frames_procesados else 0.0
@@ -360,6 +373,8 @@ def _escribir_resumen(destino: Path, cfg: Config, resumen: Resumen,
             "width": dimensiones[0],
             "height": dimensiones[1],
             "fps": round(fps_video, 4),
+            "frame_count": frame_count_video,
+            "duration_s": round(duration_s_video, 3),
         },
         "model": nombre_modelo,
         "params": {

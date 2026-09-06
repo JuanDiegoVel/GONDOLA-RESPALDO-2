@@ -96,6 +96,7 @@ def rutas_de_entrada(video_id: str, output_dir: Path, zones_dir: Path) -> "Rutas
         interact_path=output_dir / f"{video_id}.interact.jsonl",
         metrics_path=output_dir / f"{video_id}.metrics.json",
         zones_path=zones_dir / f"{video_id}.json",
+        detect_summary_path=output_dir / f"{video_id}.detect.summary.json",
     )
 
 
@@ -104,6 +105,11 @@ class RutasImportacion:
     interact_path: Path
     metrics_path: Path
     zones_path: Path
+    # NO es un archivo requerido (ver comprobar(), abajo no lo incluye):
+    # solo mejora la precision de frame_count/duration_s si esta. Un video
+    # importado con una version vieja del pipeline, sin este campo en su
+    # .detect.summary.json, sigue importando igual -ver _derivar_info_de_video-.
+    detect_summary_path: Path
 
     def comprobar(self) -> None:
         faltantes = [p for p in (self.interact_path, self.metrics_path, self.zones_path) if not p.exists()]
@@ -144,14 +150,44 @@ class _VideoDerivado:
     duration_s: float | None
 
 
-def _derivar_info_de_video(interact_path: Path, fps_override: float | None) -> _VideoDerivado:
-    """Un primer paso, en streaming, solo para sacar fps/frame_count/duration_s.
+def _frame_count_y_duracion_reales(detect_summary_path: Path) -> tuple[int, float] | None:
+    """Lee `frame_count`/`duration_s` del VIDEO COMPLETO desde
+    `<video_id>.detect.summary.json` (los escribe `gondola/stages/detect.py`
+    con `VideoReader.info`, via `cv2.CAP_PROP_FRAME_COUNT`), si el archivo
+    existe y trae esos campos.
 
-    `timestamp = frame_number / fps` exactamente (ver
-    `gondola/video/reader.py`, `VideoReader.frames`), asi que basta UN evento
-    con `frame > 0` para despejar los fps. Es una segunda pasada por el
-    archivo (la primera de dos: la segunda inserta los eventos), pero cada
-    pasada sigue sin cargar nada en memoria: solo se llevan cuatro numeros.
+    Devuelve `None` si no -un video procesado con una version vieja del
+    pipeline no los tiene todavia-, para que quien llama caiga de vuelta a
+    inferirlos de los eventos."""
+    if not detect_summary_path.exists():
+        return None
+    try:
+        datos = json.loads(detect_summary_path.read_text(encoding="utf-8"))
+        video = datos.get("video", {})
+        frame_count = video.get("frame_count")
+        duration_s = video.get("duration_s")
+    except (json.JSONDecodeError, OSError):
+        return None
+    if frame_count is None or duration_s is None:
+        return None
+    return int(frame_count), float(duration_s)
+
+
+def _derivar_info_de_video(
+    interact_path: Path, fps_override: float | None, detect_summary_path: Path
+) -> _VideoDerivado:
+    """Saca fps/frame_count/duration_s del video.
+
+    `frame_count`/`duration_s` PREFIEREN `<video_id>.detect.summary.json`
+    (el video completo, de `cv2.CAP_PROP_FRAME_COUNT`) sobre inferirlos del
+    ultimo evento del .jsonl: un video que termina con el pasillo vacio no
+    genera eventos ahi -YOLO no detecto a nadie-, y el ultimo evento quedaba
+    varios segundos antes del final real (bug real, encontrado en la
+    practica). Los fps SI se derivan siempre de los eventos (o de
+    `fps_override`): `timestamp = frame_number / fps` exactamente (ver
+    `gondola/video/reader.py`, `VideoReader.frames`), asi que basta UN
+    evento con `frame > 0` para despejarlos, y el .summary.json no siempre
+    los trae con la precision que hace falta para el contrato.
     """
     from gondola.jsonl import read_events
 
@@ -176,6 +212,11 @@ def _derivar_info_de_video(interact_path: Path, fps_override: float | None) -> _
             "(todos sus eventos estan en el frame 0, o el archivo esta vacio).\n"
             "Que hacer: pasa --fps <valor> con los fps reales del video."
         )
+
+    reales = _frame_count_y_duracion_reales(detect_summary_path)
+    if reales is not None:
+        frame_count, duration_s = reales
+        return _VideoDerivado(fps=fps, frame_count=frame_count, duration_s=duration_s)
 
     if total == 0:
         return _VideoDerivado(fps=fps, frame_count=None, duration_s=None)
@@ -394,7 +435,7 @@ def import_video(
     rutas.comprobar()
 
     zones_config = load_zones_config(rutas.zones_path)
-    derivado = _derivar_info_de_video(rutas.interact_path, fps_override)
+    derivado = _derivar_info_de_video(rutas.interact_path, fps_override, rutas.detect_summary_path)
 
     metrics_data = json.loads(rutas.metrics_path.read_text(encoding="utf-8"))
     contract_version = metrics_data.get("contract_version", CONTRACT_VERSION)

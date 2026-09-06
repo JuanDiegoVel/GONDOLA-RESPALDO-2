@@ -185,6 +185,49 @@ def test_importa_video_zonas_eventos_y_metricas(tmp_path, video_id, db_conn):
     assert sin_zona["zone_id"] is None
 
 
+def test_duration_prefiere_el_detect_summary_sobre_el_ultimo_evento(tmp_path, video_id, db_conn):
+    """Bug real: un video que termina con el pasillo vacio no genera
+    eventos ahi -YOLO no detecto a nadie-, asi que el ultimo evento del
+    .interact.jsonl queda varios segundos antes del final real. Con
+    '<video_id>.detect.summary.json' presente (lo escribe 'detect', con el
+    frame_count/duration_s de cv2.CAP_PROP_FRAME_COUNT, el video COMPLETO),
+    el importador debe preferirlo sobre inferir del ultimo evento."""
+    output_dir, zones_dir, eventos = _preparar_archivos(tmp_path, video_id)
+    ultimo_evento_s = max(e.timestamp for e in eventos)  # 125/25 = 5.0s
+
+    # El video real dura bastante mas: los ultimos segundos, sin nadie.
+    duracion_real = ultimo_evento_s + 30.0
+    frames_reales = round(duracion_real * FPS)
+    (output_dir / f"{video_id}.detect.summary.json").write_text(
+        json.dumps({
+            "video": {"width": 1280, "height": 720, "fps": FPS,
+                       "frame_count": frames_reales, "duration_s": duracion_real},
+        }),
+        encoding="utf-8",
+    )
+
+    resumen = import_video(video_id, output_dir=output_dir, zones_dir=zones_dir)
+
+    assert resumen.duration_s_estimado == pytest.approx(duracion_real)
+    assert resumen.frame_count_estimado == frames_reales
+
+    video = db.find_video(db_conn, video_id)
+    assert video["duration_s"] == pytest.approx(duracion_real)
+    assert video["frame_count"] == frames_reales
+
+
+def test_duration_cae_al_ultimo_evento_si_no_hay_detect_summary(tmp_path, video_id, db_conn):
+    """Un video procesado con una version vieja del pipeline (sin
+    detect.summary.json, o sin frame_count/duration_s ahi) no debe fallar:
+    sigue funcionando como antes, inferido del ultimo evento."""
+    output_dir, zones_dir, eventos = _preparar_archivos(tmp_path, video_id)
+    ultimo_evento_s = max(e.timestamp for e in eventos)
+
+    resumen = import_video(video_id, output_dir=output_dir, zones_dir=zones_dir)
+
+    assert resumen.duration_s_estimado == pytest.approx(ultimo_evento_s)
+
+
 def test_reimportar_no_duplica_filas(tmp_path, video_id, db_conn):
     """El caso central de la idempotencia: dos corridas seguidas dejan
     exactamente el mismo numero de filas, no el doble."""

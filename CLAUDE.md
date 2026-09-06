@@ -26,8 +26,10 @@ se abre directo en el navegador y consume la API de la Persona 7 por
 `fetch()`. Se hizo asi porque se diseno primero en React con ayuda de una
 IA y se prefirio portarlo a HTML/JS plano antes que arrastrar un segundo
 entorno (Node/npm) para las 8 personas. El detalle completo -que hace, que
-le falta, que instalar (nada, pero necesita internet para sus CDN sin
-version fijada), y una limitacion de CORS ya resuelta en `backend/api.py`-
+le falta, que instalar (nada; Tailwind ya va vendorizado dentro del propio
+archivo -no depende de que `cdn.tailwindcss.com` resuelva-, pero fuentes,
+iconos y el mapa de calor siguen en CDN sin version fijada), y una
+limitacion de CORS ya resuelta en `backend/api.py`-
 esta en [`frontend/README.md`](frontend/README.md). Si vas a seguir
 tocando el dashboard, lee ese archivo primero.
 

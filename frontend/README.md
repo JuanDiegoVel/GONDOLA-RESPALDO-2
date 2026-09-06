@@ -89,6 +89,17 @@ archivo, ~2900 líneas). Se dice en voz alta en vez de esconderlo:
   cada dato nuevo que llega (zonas, posiciones, métricas llegan por
   separado) interrumpía la descarga a medias y el navegador la reportaba
   como error aunque el servidor respondiera bien — bug real, ya resuelto.
+  Otro bug real del mismo portal, encontrado por un compañero de equipo:
+  el `<video>` quedaba flotando SOBRE la portada y ATRAVESANDO los modales
+  -`#root` tiene `position:relative` + `z-index:1`, y eso lo vuelve su
+  PROPIO contexto de apilamiento: cualquier `z-index` de un modal de
+  adentro (`z-50`, lo que sea) queda atrapado ahí, comparándose solo
+  contra otros hijos de `#root`, nunca contra un HERMANO como el portal-.
+  Arreglado bajando el portal a `z-index:0` (por debajo de `#root`).
+- Botón "Atrás" del navegador: antes sacaba de la página entera (nunca se
+  agregaba nada al historial). Ahora `#/inicio` y `#/panel` en la URL,
+  con `history.pushState()` al entrar al panel, le dan al navegador una
+  entrada real a la que volver.
 - "Retroalimentación": explica en lenguaje llano por qué salen ciertos
   números (tasas en 0%, conteos que no cuadran, video demasiado corto),
   sin tener que ver el video completo. Reglas simples sobre los números ya
@@ -169,30 +180,30 @@ pipeline que el dashboard simplemente refleja con honestidad.
 
 ## Qué instalar
 
-**Nada localmente.** No hay `npm install`, no hay build. Solo hace falta un
-navegador moderno y, la primera vez que se abre, **conexión a internet**:
-la página carga estas cuatro cosas desde CDN público en vez de traerlas
-empaquetadas:
+**Nada localmente.** No hay `npm install`, no hay build.
+
+**Tailwind CSS ya NO depende de internet**: el bundle de
+`cdn.tailwindcss.com` está pegado tal cual dentro del propio `index.html`
+(un solo `<script>` grande, buscar "Tailwind (Play CDN) vendorizado EN
+LINEA"). Motivo real: algunas redes (campus, corporativas) bloquean por DNS
+ese dominio especifico, y sin el toda la página se veía sin un solo estilo
+-bug encontrado en la práctica por un compañero de equipo en otra
+máquina/red-. Sigue siendo el mismo script sin versión fijada (ese sigue
+siendo el gap conocido: sería mejor vendorizar una versión concreta de
+Tailwind, no la última que hubiera en el momento de pegarla), pero al menos
+ya no depende de que ese dominio en particular resuelva.
+
+La primera vez que se abre, sí hace falta **conexión a internet** para lo
+que queda por CDN:
 
 | Qué | De dónde | Versión fijada |
 |---|---|---|
-| Tailwind CSS | `https://cdn.tailwindcss.com` | **No.** Siempre trae la última. |
 | Fuente Plus Jakarta Sans | `https://fonts.googleapis.com` | Estable por diseño de Google Fonts. |
 | Iconos Phosphor | `https://unpkg.com/@phosphor-icons/web` | **No.** Siempre trae la última. |
 | heatmap.js (mapa de calor) | `https://cdn.jsdelivr.net/npm/heatmap.js@2.0.5/...` | **Sí,** `2.0.5`. |
 
-**Gap conocido, a diferencia del resto del proyecto:** `ai-service` y
-`backend` fijan la versión exacta de cada dependencia
-(`requirements.txt`/`requirements-dev.txt`). Aquí no se pudo hacer lo mismo
-sin arriesgarse a romper la carga del CDN sin poder verificarlo visualmente
-en esta sesión. Si Tailwind o Phosphor sacan una versión que cambia algo,
-esta página lo hereda sin aviso. Quien siga con esto debería fijar
-versiones exactas en las URLs (`cdn.tailwindcss.com/<version>`,
-`@phosphor-icons/web@<version>`) la próxima vez que lo toque, y confirmarlo
-abriendo la página.
-
-Sin internet, la página carga pero se ve sin estilos ni iconos (el HTML y
-el JavaScript sí son locales, autocontenidos).
+Sin internet, la página carga y ya se ve con los estilos de Tailwind
+puestos (vendorizado), pero sin la fuente, sin iconos y sin mapa de calor.
 
 ## Cómo correrlo
 

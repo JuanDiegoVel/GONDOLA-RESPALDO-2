@@ -293,6 +293,17 @@ def video_summary(conn: psycopg.Connection, video_id: str) -> dict[str, Any] | N
     Se calcula sobre `events` (no sobre `metrics`) para dar un numero de
     video completo sin depender de como este particionado `metrics` por
     zona/ventana.
+
+    `average_dwell_time_s` NO es `AVG(e.dwell_time_s)` a secas -bug real,
+    encontrado en la practica: `dwell_time_s` es un valor ACUMULADO que se
+    repite y crece en cada evento de la misma persona (un evento por frame),
+    asi que promediar todas las filas mezcla el `dwell_time_s` de recien
+    llegada con el de quien ya lleva rato, y el resultado sesga hacia la
+    mitad del tiempo real (`video_005` mostraba 11.25s cuando la permanencia
+    real era 6.06s). El promedio correcto es sobre PERSONAS: el
+    `dwell_time_s` MAXIMO visto por cada `track_id` (su ultimo evento, que
+    ya trae el acumulado completo), promediado entre las personas distintas
+    -mismo criterio que ya usa `gondola/stages/metrics.py` por zona-.
     """
     return conn.execute(
         """
@@ -302,7 +313,17 @@ def video_summary(conn: psycopg.Connection, video_id: str) -> dict[str, Any] | N
             COUNT(*) FILTER (WHERE e.interaction_event IS NOT NULL)          AS interaction_count,
             COUNT(*) FILTER (WHERE e.interaction_event = 'PICK_UP')          AS pick_up_count,
             COUNT(*) FILTER (WHERE e.interaction_event = 'PUT_BACK')         AS put_back_count,
-            AVG(e.dwell_time_s)                                             AS average_dwell_time_s
+            (
+                SELECT AVG(dwell_maximo.valor)
+                FROM (
+                    SELECT MAX(e2.dwell_time_s) AS valor
+                    FROM events e2
+                    WHERE e2.video_id = v.id
+                      AND e2.track_id IS NOT NULL
+                      AND e2.dwell_time_s IS NOT NULL
+                    GROUP BY e2.track_id
+                ) AS dwell_maximo
+            ) AS average_dwell_time_s
         FROM videos v
         LEFT JOIN events e ON e.video_id = v.id
         WHERE v.video_id = %(video_id)s
