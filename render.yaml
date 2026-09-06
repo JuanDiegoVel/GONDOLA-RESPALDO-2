@@ -25,10 +25,12 @@ services:
         fromDatabase:
           name: gondola-db
           property: connectionString
-      # RENDER_DIR NO se fija a mano: api.py ya calcula el default como
-      # "la carpeta que contiene backend/, mas data/output" (ver api.py),
-      # que es correcto sea cual sea la ruta absoluta donde Render clone
-      # el repositorio -no hace falta adivinarla.
+      - key: PROCESSED_VIDEOS_DIR
+        value: ../data/output
+        # NO se llama RENDER_algo: en un despliegue real, Render.com
+        # reserva ese prefijo para sus propias variables internas y pisa
+        # en silencio cualquier valor que se ponga ahi a mano -verificado
+        # en la practica, costo una ronda entera de depuracion-.
 
 databases:
   - name: gondola-db

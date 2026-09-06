@@ -74,8 +74,15 @@ app = FastAPI(
 
 # Carpeta donde el AI Service deja los videos renderizados (RENDER_MODE en
 # ai-service/.env). Por defecto <raiz del repo>/data/output -mismo OUTPUT_DIR
-# que usa gondola/config.py-, mas RENDER_DIR en backend/.env por si alguien
-# corre la API desde otra maquina con los datos en otro lado.
+# que usa gondola/config.py-, mas PROCESSED_VIDEOS_DIR en backend/.env por si
+# alguien corre la API desde otra maquina con los datos en otro lado.
+#
+# El nombre de esta variable NO empieza por "RENDER_" a proposito: se llamo
+# asi al principio (RENDER_DIR) y en un despliegue real en Render.com esa
+# variable jamas llegaba con el valor puesto a mano -Render reserva ese
+# prefijo para sus propias variables internas y lo pisa en silencio-, asi
+# que cualquier "RENDER_algo" que declares en su dashboard es terreno
+# minado. Verificado en la practica, no una suposicion.
 #
 # Esto SI es una excepcion puntual a "el backend solo lee lo que el AI
 # Service pone en PostgreSQL" (ver docstring de arriba y
@@ -84,7 +91,7 @@ app = FastAPI(
 # vez de esto se copiara el video a una tabla, se estaria guardando binarios
 # de varios MB en PostgreSQL sin ninguna necesidad.
 RENDER_DIR = Path(
-    os.environ.get("RENDER_DIR")
+    os.environ.get("PROCESSED_VIDEOS_DIR")
     or (Path(__file__).resolve().parent.parent / "data" / "output")
 )
 

@@ -56,8 +56,8 @@ pytest
 | `GET /videos/{video_id}/render` | El video ya procesado en modo `privacy` (fondo gris inventado + cajas de detección). Prefiere el render de `interact` (resalta APPROACH/PICK_UP/PUT_BACK) y cae al de `track` si no existe. 404 si el video no tiene ninguno de los dos en disco |
 
 Todo esto sale de PostgreSQL, **excepto** `/render`, que sirve un archivo
-estático de `data/output/` (ver el comentario de `RENDER_DIR` en `api.py`)
-— es la única excepción a "esta capa solo lee de la base de datos".
+estático de `data/output/` (ver el comentario de `PROCESSED_VIDEOS_DIR` en
+`api.py`) — es la única excepción a "esta capa solo lee de la base de datos".
 
 ### Subida de video desde el dashboard (`backend/uploads.py`)
 
@@ -117,7 +117,7 @@ más — meter `DATABASE_URL` ahí lo rompería.
 | Variable | Para qué | Obligatoria |
 |---|---|---|
 | `DATABASE_URL` | Cadena de conexión a PostgreSQL | Sí |
-| `RENDER_DIR` | Carpeta con los videos renderizados, si la API corre en otra máquina distinta a la que tiene `data/output/`. Por defecto `<raíz del repo>/data/output` | No |
+| `PROCESSED_VIDEOS_DIR` | Carpeta con los videos renderizados, si la API corre en otra máquina distinta a la que tiene `data/output/`. Por defecto `<raíz del repo>/data/output`. NO la llames `RENDER_algo` si despliegas en Render.com: ese prefijo esta reservado por la plataforma y pisa en silencio el valor que pongas. | No |
 
 ## CORS
 
