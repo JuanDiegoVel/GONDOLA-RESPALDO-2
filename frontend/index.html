@@ -340,34 +340,29 @@ function calculateRejectionRate(putBack, pickUp) {
   const rate = putBack / pickUp;
   return { rate, label: `${(rate * 100).toFixed(1)}%`, explanation: `${putBack} de ${pickUp} tomas devueltas` };
 }
-// Los unicos video_id que de verdad pasaron por el pipeline completo
-// (YOLO + tracking + zonas + interact + metrics) y no son un dato de
-// prueba armado a mano. No hay forma de derivar esto de la respuesta de
-// la API (video_demo_001/video_demo_002, por ejemplo, SI estan en
-// PostgreSQL pero se insertaron a mano al principio del proyecto para
-// probar la conexion API<->base de datos, no corriendo el pipeline), asi
-// que esta lista se mantiene aqui, a mano, cada vez que se importa un
-// video real nuevo (ver frontend/README.md, seccion de datos MERL).
-const VIDEOS_REALES_CONOCIDOS = new Set([
-  'video_001',
-  // 'video_002'..'video_006': la nueva convencion de nombres, con
-  // calibracion de zonas propia (ver data/zones/video_002.json..006.json),
-  // para cuando los clips del MERL Shopping Dataset se (re)importen bajo
-  // este esquema. 'video_demo_merl_*': el nombre viejo con el que ESTOS
-  // MISMOS clips ya estan importados en algunas maquinas (la mia incluida)
-  // -sin renombrar la base de datos de nadie, se listan los dos hasta que
-  // todo el equipo re-importe con los nombres nuevos-.
-  'video_002', 'video_003', 'video_004', 'video_005', 'video_006',
-  'video_demo_merl_24_3', 'video_demo_merl_15_3', 'video_demo_merl_39_1',
-  'video_demo_merl_18_3', 'video_demo_merl_36_1',
+// Los UNICOS video_id que son datos ficticios metidos a mano en PostgreSQL
+// (ver backend/database/seed_example.sql), no un video real que paso por
+// el pipeline. Antes esto era una lista de "reales conocidos"
+// (VIDEOS_REALES_CONOCIDOS): el problema es que esa lista tiene que
+// crecer -a mano, en este archivo- cada vez que CUALQUIERA del equipo
+// procesa un video nuevo, y si alguien lo olvida, el video queda
+// marcado "Prueba" Y SIN REPRODUCTOR (ver isDemoVideo() e _initSlot() mas
+// abajo, los dos lo consultan). Al reves -una lista de "pruebas
+// conocidas"- no tiene ese problema: seed_example.sql es un archivo fijo
+// y versionado, esta lista NUNCA necesita crecer, y cualquier video_id
+// nuevo que la API real devuelva se trata como real por defecto, sin que
+// nadie tenga que acordarse de nada.
+const VIDEOS_DE_PRUEBA_CONOCIDOS = new Set([
+  'video_demo_001',
+  'video_demo_002',
 ]);
 
 function isDemoVideo(videoId) {
   // "PRUEBA" es para los datos inventados a mano (MOCK_VIDEOS y compania,
-  // mas abajo, cuando el modo demo esta prendido) Y para los que la API
-  // real devuelve pero no estan en VIDEOS_REALES_CONOCIDOS (fixtures viejos
-  // de prueba que quedaron en la base de datos, ver el comentario arriba).
-  if (!state.useMockMode) return !VIDEOS_REALES_CONOCIDOS.has(videoId);
+  // mas abajo, cuando el modo demo esta prendido) Y para los fixtures fijos
+  // de seed_example.sql (ver el comentario arriba). Cualquier OTRO video_id
+  // que la API real devuelva se asume real: no hay lista que mantener.
+  if (!state.useMockMode) return VIDEOS_DE_PRUEBA_CONOCIDOS.has(videoId);
   return videoId.toLowerCase().startsWith('video_demo_');
 }
 function formatDuration(durationSeconds) {
