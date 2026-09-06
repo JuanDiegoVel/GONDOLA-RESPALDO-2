@@ -111,6 +111,15 @@ async function sondearTrabajo() {
       return;
     }
     if (job.estado === 'rechazado' || job.estado === 'error') return;
+    // 'esperando_zonas' tambien corta el sondeo: nada va a cambiar del lado
+    // del servidor mientras la persona dibuja los estantes -el siguiente
+    // paso (procesando) lo arranca enviarZonas() a mano, no este sondeo-.
+    // Sin este corte, cada 2s se reconstruia el modal ENTERO (incluido el
+    // <canvas> de calibracion, un nodo nuevo) aunque el estado del trabajo
+    // no hubiera cambiado: el lienzo con los rectangulos ya dibujados
+    // parpadeaba y se reiniciaba a medio dibujar -bug real, reportado en la
+    // practica-.
+    if (job.estado === 'esperando_zonas') return;
   } catch (err) {
     actualizarSubida({ error: `Se perdió el contacto con la API: ${err.message}` });
   }
