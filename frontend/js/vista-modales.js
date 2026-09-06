@@ -2,6 +2,50 @@
 // Parte del dashboard de Gondola Inteligente. Se carga desde index.html
 // como <script> clasico (no modulo ES): ver el comentario de index.html.
 
+// Boceto de linea (sin fotos, sin colores llamativos) para la portada:
+// pedido explicito de que alguien SIN contexto del proyecto pueda entender
+// de un vistazo que hace el sistema -"ve" una posicion, no un rostro- sin
+// necesidad de mostrar un video real (el render anonimizado de verdad, con
+// cajas sobre fondo gris, solo aparece DENTRO del panel, con un video
+// elegido). La persona es una silueta a proposito SIN rasgos (ni ojos, ni
+// boca): la cara nunca se dibuja, ni siquiera en un boceto. El punto y el
+// recuadro punteado en azul son el UNICO dato real que el sistema guarda
+// de alguien: su posicion (los pies) en un instante, no su identidad.
+// Los colores usan `currentColor` sobre clases `text-[...]` que YA tienen
+// su version de modo oscuro en css/estilos.css (mismo mecanismo que el
+// resto del dashboard) en vez de colores fijos, para no verse lavado en
+// modo oscuro.
+const ILUSTRACION_CONCEPTO_SVG = `
+<svg viewBox="0 0 360 170" class="w-full h-auto max-w-[300px] mx-auto" role="img" aria-label="Boceto: una gondola con estantes y una persona junto a ella, dibujada sin rostro, con un punto marcando solo su posicion en el piso">
+  <line x1="10" y1="155" x2="345" y2="155" class="text-[#D6D3D1]" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <g class="text-[#57534E]" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linejoin="round">
+    <rect x="30" y="25" width="120" height="125" rx="4"/>
+    <line x1="30" y1="67" x2="150" y2="67"/>
+    <line x1="30" y1="108" x2="150" y2="108"/>
+  </g>
+  <g class="text-[#D6D3D1]" fill="currentColor">
+    <rect x="40" y="36" width="16" height="16" rx="2"/>
+    <rect x="64" y="36" width="16" height="16" rx="2"/>
+    <rect x="88" y="36" width="16" height="16" rx="2"/>
+    <rect x="40" y="78" width="16" height="16" rx="2"/>
+    <rect x="64" y="78" width="16" height="16" rx="2"/>
+    <rect x="40" y="119" width="16" height="16" rx="2"/>
+    <rect x="88" y="119" width="16" height="16" rx="2"/>
+  </g>
+  <g class="text-[#57534E]" fill="currentColor">
+    <circle cx="225" cy="58" r="13"/>
+    <rect x="205" y="72" width="40" height="48" rx="18"/>
+    <rect x="210" y="115" width="10" height="38" rx="5"/>
+    <rect x="232" y="115" width="10" height="38" rx="5"/>
+  </g>
+  <g class="text-[#1F6C9F]">
+    <rect x="198" y="146" width="54" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <circle cx="225" cy="154" r="4" fill="currentColor"/>
+    <line x1="252" y1="154" x2="266" y2="154" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <text x="269" y="158" font-size="11" font-weight="600" fill="currentColor">posición (x, y)</text>
+  </g>
+</svg>`;
+
 function renderConfigModal() {
   if (!state.isConfigModalOpen) return '';
   const testResultHtml = !state.configTest ? '' : `
@@ -79,6 +123,13 @@ function renderPantallaInicio() {
           Analiza video de cámaras de tienda para entender cómo se mueven los clientes
           frente a una góndola — cuántos pasan, dónde se detienen y qué productos tocan —
           sin identificar a ninguna persona.
+        </p>
+      </div>
+
+      <div class="bg-white rounded-xl border border-[#EAEAEA] p-5 shadow-xs">
+        ${ILUSTRACION_CONCEPTO_SVG}
+        <p class="text-xs text-[#787774] text-center mt-2 leading-relaxed">
+          Así "vemos" a un cliente: nunca su rostro ni su identidad, solo un punto que marca dónde están sus pies frente al estante, cuadro a cuadro.
         </p>
       </div>
 
