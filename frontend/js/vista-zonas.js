@@ -90,7 +90,7 @@ function renderZonesSection(bundle = bundleDe(), idPrefix = '') {
         <div class="flex items-center gap-2">
           <h2 class="text-sm font-bold text-[#111111]">Análisis Detallado por Zona</h2>
           <span class="px-2 py-0.5 bg-[#FBF3DB] text-[#956400] text-[10px] font-bold rounded">${isSingleZone ? '1 ZONA' : `${zones.length} ZONAS`}</span>
-        </div>
+          ${infoButton('Análisis Detallado por Zona', 'Cada fila es una zona calibrada a mano sobre el video (data/zones/), con las métricas que el pipeline calculó a partir de los eventos con esa zona asignada: cuántas personas entraron, cuántas interacciones/tomas/devoluciones hubo, y la permanencia promedio. Nada de esto es un estimado -son conteos directos de los eventos importados a PostgreSQL para este video.')}</div>
         <p class="text-[11px] text-[#787774]">${isSingleZone ? 'Monitoreo centrado en góndola principal' : 'Desglose y conversión por estante o nivel de planograma'}</p>
       </div>
     </div>
@@ -224,7 +224,7 @@ function renderPositionsHeatmap(bundle = bundleDe()) {
       <div class="flex items-center gap-2.5">
         <div class="w-7 h-7 rounded-lg bg-[#F3F2EF] text-[#787774] flex items-center justify-center shrink-0">${icon('compass', 'w-4 h-4')}</div>
         <div>
-          <h3 class="text-sm font-bold text-[#111111]">Mapa de Calor Real (por coordenadas)</h3>
+          <h3 class="text-sm font-bold text-[#111111] inline-flex items-center gap-1.5">Mapa de Calor Real (por coordenadas) ${infoButton('Mapa de Calor Real', 'Cada punto es el punto de apoyo (los pies) de una persona detectada en un frame -la posición (x, y) en píxeles del video original, nunca su rostro ni identidad-. El mapa dibuja la densidad de TODOS esos puntos, cuadro a cuadro; no es un estimado ni un promedio, son las coordenadas reales que el pipeline registró.')}</h3>
           <p class="text-[11px] text-[#787774]">Densidad de ${formatNumber(bundle.positions.length)} posiciones detectadas, en píxeles del frame original</p>
         </div>
       </div>
@@ -460,7 +460,7 @@ function renderZonesHeatmap(bundle = bundleDe()) {
         <div class="flex items-center gap-2.5">
           <div class="w-7 h-7 rounded-lg bg-[#F3F2EF] text-[#787774] flex items-center justify-center shrink-0">${icon('map', 'w-4 h-4')}</div>
           <div>
-            <h3 class="text-sm font-bold text-[#111111]">Resumen por Zona</h3>
+            <h3 class="text-sm font-bold text-[#111111] inline-flex items-center gap-1.5">Resumen por Zona ${infoButton('Resumen por Zona', 'El color de cada estante sale de comparar su people_count contra el estante MÁS visitado del mismo video -no contra un umbral fijo-, así que "rojo" en un video con poco tráfico no significa lo mismo que "rojo" en uno con mucho. Los números (personas, interacciones, permanencia) vienen de la tabla metrics ya calculada por el pipeline, agregada por góndola y por estante.')}</h3>
             <p class="text-[11px] text-[#787774]">Total agregado por góndola/estante — el mapa de calor por coordenadas está arriba</p>
           </div>
         </div>
@@ -565,7 +565,7 @@ function renderInsights() {
       <div class="flex items-center gap-2.5">
         <div class="w-7 h-7 rounded-lg bg-[#1F6C9F]/10 text-[#1F6C9F] flex items-center justify-center shrink-0">${icon('compass', 'w-4 h-4')}</div>
         <div>
-          <h3 class="text-sm font-bold text-[#111111]">Diagnóstico de Space Management en 10 Segundos</h3>
+          <h3 class="text-sm font-bold text-[#111111] inline-flex items-center gap-1.5">Diagnóstico de Space Management en 10 Segundos ${infoButton('Diagnóstico de Space Management', 'Cada tarjeta sale de reglas simples sobre los números que ya calculó el pipeline (personas distintas, interacciones, tomas, devoluciones, permanencia) -no hay un modelo de IA nuevo, solo comparaciones entre esos datos-. El nivel de confianza (alta/media/baja) depende de cuántas personas distintas sostienen el patrón: con menos de 10 puede ser ruido, no tendencia. El sistema mide comportamiento, nunca analiza el producto en sí.')}</h3>
           <p class="text-[11px] text-[#787774]">Síntesis ejecutiva de comportamiento para gerencia de tienda y planogramación</p>
         </div>
       </div>
@@ -595,7 +595,7 @@ function renderSidebar() {
   <div class="bg-[#2A2E31] text-white p-5 rounded-xl relative overflow-hidden shadow-xs border border-[#3A3F42]">
     <div class="relative z-10">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-xs font-bold uppercase tracking-widest text-[#A8A29E]">Tasa de Rechazo Global</h3>
+        <h3 class="text-xs font-bold uppercase tracking-widest text-[#A8A29E] inline-flex items-center gap-1.5">Tasa de Rechazo Global ${infoButton('Tasa de Rechazo Global', 'put_back_count ÷ pick_up_count de todo el video, en porcentaje. Sin ninguna toma detectada (pick_up_count = 0) esta tarjeta muestra 0.0% por defecto, pero eso NO es lo mismo que "0% de rechazo real": es un dato ausente, no una tasa calculada -ver la tarjeta de Retroalimentación para esa aclaración con los números concretos de este video.')}</h3>
         <span class="text-[10px] font-mono text-[#A8A29E] px-1.5 py-0.5 rounded bg-white/10">PUT-BACKS</span>
       </div>
       <div class="text-3xl sm:text-4xl font-bold mb-2 tracking-tight text-[#E5E3DE]">${rejectionRate}<span class="text-lg opacity-50 font-normal">%</span></div>

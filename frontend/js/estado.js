@@ -72,6 +72,10 @@ const state = {
   errorDetail: null,
   errorMetrics: null,
   isConfigModalOpen: false,
+  // {titulo, texto} de la tarjeta cuyo infoButton() se toco, o null si el
+  // modal de "de donde sale este dato" (renderInfoModal(), vista-modales.js)
+  // esta cerrado.
+  infoAbierto: null,
   // Borrador del campo de URL en el modal de configuracion: separado de
   // apiBaseUrl (la URL ya aplicada) para que escribir una URL nueva y
   // pulsar "Probar" no la borre. "Probar" dispara un fetch async que

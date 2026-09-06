@@ -107,6 +107,31 @@ function renderConfigModal() {
   </div>`;
 }
 
+// Modal generico que abre cualquier infoButton() (ver vista-panel.js): un
+// solo modal reutilizado por TODAS las tarjetas del dashboard, en vez de
+// uno por tarjeta -el texto que muestra viene del propio boton que lo
+// abrio (state.infoAbierto = {titulo, texto}, puesto en app.js), no de una
+// lista aparte que alguien pueda olvidar mantener sincronizada.
+function renderInfoModal() {
+  const info = state.infoAbierto;
+  if (!info) return '';
+  return `
+  <div role="dialog" aria-modal="true" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-backdrop">
+    <div class="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-xl overflow-hidden modal-anim">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-lg bg-[#1F6C9F] text-white">${icon('help-circle', 'w-4 h-4')}</div>
+          <h2 class="text-sm font-bold text-slate-900">${esc(info.titulo)}</h2>
+        </div>
+        <button type="button" data-action="cerrar-info" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors" aria-label="Cerrar ventana">${icon('x', 'w-4 h-4')}</button>
+      </div>
+      <div class="p-5">
+        <p class="text-sm text-slate-600 leading-relaxed">${esc(info.texto)}</p>
+      </div>
+    </div>
+  </div>`;
+}
+
 // Portada de bienvenida: que se ve esta pagina, que puede hacer, con que
 // esta hecha -"muy por encimita", nada tecnico a fondo- y el logo en el
 // centro. Vive fuera del <main> normal a proposito: es su propia pantalla

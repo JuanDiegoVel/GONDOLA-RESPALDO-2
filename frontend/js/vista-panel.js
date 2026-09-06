@@ -25,6 +25,19 @@ function icon(name, cls) {
   return `<i class="ph-bold ph-${phosphorName} ${cls}" style="font-size:${px}px;line-height:1;display:inline-block"></i>`;
 }
 
+// Botoncito "?" para poner junto al titulo de casi cualquier tarjeta del
+// dashboard: al pasar el mouse muestra el texto corto (title nativo), y al
+// hacer click abre el mismo texto en un modal (renderInfoModal(), en
+// vista-modales.js) -pensado para que en pantallas tactiles, donde no hay
+// "hover", la explicacion siga siendo alcanzable con un toque. El texto
+// vive donde se llama a infoButton(), no en una lista aparte: asi nunca se
+// desincroniza el texto del tooltip nativo con el del modal, son el mismo.
+function infoButton(titulo, texto) {
+  return `<button type="button" data-action="mostrar-info" data-info-titulo="${esc(titulo)}" data-info-texto="${esc(texto)}"
+    class="cursor-pointer text-[#A8A29E] hover:text-[#1F6C9F] transition-colors shrink-0"
+    title="${esc(texto)}" aria-label="¿De dónde sale este dato?">${icon('help-circle', 'w-3 h-3')}</button>`;
+}
+
 function renderHeader() {
   let statusHtml;
   if (state.useMockMode) {
@@ -234,7 +247,7 @@ function metricCard({ id, title, value, subtext, badge, tone = 'neutral', toolti
   <div id="${id}" class="p-4 rounded-xl border card-lift flex flex-col justify-between shadow-xs ${highlight ? 'bg-white border-[#1F6C9F]/40 ring-1 ring-[#1F6C9F]/20' : 'bg-white border-[#EAEAEA]'}">
     <div class="flex items-center justify-between gap-1 mb-1">
       <span class="text-[10px] font-bold text-[#787774] uppercase tracking-[0.1em] truncate" title="${esc(title)}">${esc(title)}</span>
-      ${tooltip ? `<span class="cursor-help text-[#A8A29E] hover:text-[#787774] transition-colors" title="${esc(tooltip)}">${icon('help-circle', 'w-3 h-3')}</span>` : ''}
+      ${tooltip ? infoButton(title, tooltip) : ''}
     </div>
     <div class="my-1">
       <div class="flex items-baseline gap-2">

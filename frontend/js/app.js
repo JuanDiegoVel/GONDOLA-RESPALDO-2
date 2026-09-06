@@ -82,6 +82,7 @@ function render() {
     </footer>
     ${renderConfigModal()}
     ${renderSubidaModal()}
+    ${renderInfoModal()}
   `;
 
   if (firstPaint) hasAnimatedIn = true;
@@ -145,6 +146,8 @@ document.addEventListener('click', async (e) => {
     setState({ darkMode: nuevo });
   }
   else if (action === 'close-settings') setState({ isConfigModalOpen: false, configTest: null, configUrlDraft: null });
+  else if (action === 'mostrar-info') setState({ infoAbierto: { titulo: el.dataset.infoTitulo, texto: el.dataset.infoTexto } });
+  else if (action === 'cerrar-info') setState({ infoAbierto: null });
   else if (action === 'refresh-videos') loadVideos();
   else if (action === 'eliminar-video') {
     const actual = state.videos.find((v) => v.video_id === state.selectedVideoId);

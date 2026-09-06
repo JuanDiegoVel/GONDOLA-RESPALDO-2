@@ -20,7 +20,7 @@ function renderFeedback(bundle = bundleDe()) {
     <div class="flex items-center gap-2.5 mb-3">
       <div class="w-7 h-7 rounded-lg bg-[#FBF3DB] text-[#956400] flex items-center justify-center shrink-0">${icon('help-circle', 'w-4 h-4')}</div>
       <div>
-        <h3 class="text-sm font-bold text-[#111111]">Retroalimentación: por qué salen estos números</h3>
+        <h3 class="text-sm font-bold text-[#111111] inline-flex items-center gap-1.5">Retroalimentación: por qué salen estos números ${infoButton('Retroalimentación automática', 'Son reglas simples (sin IA) que revisan los números ya calculados de este video -pick_up_count, put_back_count, duration_s, people_count- y señalan cuándo un número puede tener una explicación distinta a la obvia: un video corto, un dataset pensado para una sola persona, un umbral de detección al límite, etc. El objetivo es que no se lea un porcentaje como una verdad absoluta sin conocer sus límites.')}</h3>
         <p class="text-[11px] text-[#787774]">Para entender el resultado sin tener que ver el video completo</p>
       </div>
     </div>
