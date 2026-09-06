@@ -118,6 +118,46 @@ def _leer_ruta(env: Mapping[str, str], nombre: str, defecto: str) -> Path:
     return ruta if ruta.is_absolute() else (RAIZ / ruta)
 
 
+EXTENSIONES_VIDEO = (".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v")
+
+
+def _resolver_video_path(ruta_configurada: Path) -> Path:
+    """Si `VIDEO_PATH` no existe, busca UN solo video en esa misma carpeta y
+    lo usa en su lugar -sin que nadie tenga que tocar `.env`-.
+
+    El motivo: el video real casi nunca llega con un nombre elegido por
+    quien lo va a procesar -llega por WhatsApp, con el nombre que le puso
+    el telefono de quien lo mando (`VID-20260904-WA0002.mp4`, por
+    ejemplo)-. Renombrarlo cada vez, o pedirle a cada persona del equipo
+    que edite `VIDEO_PATH` a mano, es friccion que no aporta nada: al
+    pipeline nunca le importo el nombre del archivo (`VIDEO_ID` -la
+    etiqueta que sí importa, para los archivos de salida- es una variable
+    aparte, ver `load_config()`).
+
+    Solo actua cuando la busqueda no es ambigua: si la carpeta tiene CERO
+    o VARIOS videos, se deja `ruta_configurada` tal cual y quien la revise
+    (`gondola doctor`, o el error de `video/reader.py`) sigue viendo el
+    mensaje de siempre -mejor un error claro que adivinar cual de varios
+    videos era."""
+    if ruta_configurada.exists():
+        return ruta_configurada
+    carpeta = ruta_configurada.parent
+    if not carpeta.is_dir():
+        return ruta_configurada
+    candidatos = sorted(
+        p for p in carpeta.iterdir()
+        if p.is_file() and p.suffix.lower() in EXTENSIONES_VIDEO
+    )
+    if len(candidatos) == 1:
+        print(
+            f"[config] No encontre '{ruta_configurada.name}' en {carpeta}, "
+            f"pero ahi hay un solo video: usando '{candidatos[0].name}'. "
+            f"(Para fijar el nombre en vez de adivinarlo, pon VIDEO_PATH en tu .env)"
+        )
+        return candidatos[0]
+    return ruta_configurada
+
+
 def load_config(env: Mapping[str, str] | None = None) -> Config:
     """Arma la configuracion y la valida.
 
@@ -138,7 +178,7 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         )
 
     return Config(
-        video_path=_leer_ruta(env, "VIDEO_PATH", "data/videos/scapder.mp4"),
+        video_path=_resolver_video_path(_leer_ruta(env, "VIDEO_PATH", "data/videos/scapder.mp4")),
         video_id=video_id,
         model_path=_leer_ruta(env, "MODEL_PATH", "data/models/yolo11n.pt"),
         output_dir=_leer_ruta(env, "OUTPUT_DIR", "data/output"),
