@@ -141,7 +141,16 @@ Shopping Dataset** (`video_demo_merl_24_3`, `_15_3`, `_39_1`, `_18_3`,
 `_36_1` — mismo prefijo `video_demo_` que los datos de prueba del
 dashboard, pero corridos por el pipeline de verdad, no inventados a mano).
 Reutilizan la calibración de cámara de `video_001` porque comparten la
-misma resolución (920×680): ver `data/zones/README.md`.
+misma resolución (920×680): cada uno tiene su propio archivo en
+`data/zones/<video_id>.json`, copia del de `video_001` con el `video_id`
+cambiado -no un solo archivo compartido-, ver `data/zones/README.md`. A
+diferencia de los videos en sí, estos SI están versionados en git (son
+JSON pequeños, no video): sin ellos, volver a correr la cadena completa
+sobre estos clips falla en la etapa `zones` pidiendo un archivo que no
+existe -bug real, encontrado en la práctica: los cinco clips MERL se
+importaron alguna vez con estos archivos, pero nunca se subieron a git,
+así que un clon nuevo (o volver a correr el pipeline en la misma máquina,
+tras borrar `data/zones/`) no podía reproducirlos-.
 
 **Esto vive SOLO en la máquina donde se corrió el pipeline, no en git.**
 Estos seis videos quedaron importados en el volumen de Docker de Postgres
