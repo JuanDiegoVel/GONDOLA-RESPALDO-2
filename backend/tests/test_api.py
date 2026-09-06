@@ -91,3 +91,32 @@ def test_metricas_de_zona_desconocida_da_404(video_importado):
     respuesta = cliente.get(f"/videos/{video_importado}/metrics/zona_que_no_existe")
     assert respuesta.status_code == 404
     assert "zona_que_no_existe" in respuesta.json()["detail"]
+
+
+def test_borrar_un_video_lo_quita_de_la_lista_y_de_sus_endpoints(video_importado):
+    respuesta = cliente.delete(f"/videos/{video_importado}")
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert cuerpo["video_id"] == video_importado
+    assert cuerpo["borrado"] is True
+
+    assert video_importado not in [v["video_id"] for v in cliente.get("/videos").json()]
+    assert cliente.get(f"/videos/{video_importado}").status_code == 404
+
+
+def test_borrar_un_video_no_toca_las_zonas_de_otro_video(video_importado, db_conn):
+    """Las zonas ('gondola_A', 'estante_1'...) son globales -compartidas
+    entre videos que reusan la misma calibracion de camara-, no propiedad
+    de un solo video: borrar uno no debe llevarse la zona por delante."""
+    cliente.delete(f"/videos/{video_importado}")
+    gondola_id = f"{video_importado}_gondola_A"
+    fila = db_conn.execute(
+        "SELECT 1 FROM zones WHERE zone_id = %(id)s", {"id": gondola_id}
+    ).fetchone()
+    assert fila is not None, "borrar el video se llevo su zona, y no deberia"
+
+
+def test_borrar_un_video_que_no_existe_da_404(_servidor_disponible):
+    respuesta = cliente.delete("/videos/video_que_no_existe")
+    assert respuesta.status_code == 404
+    assert "video_que_no_existe" in respuesta.json()["detail"]

@@ -96,7 +96,7 @@ ORIGENES_PERMITIDOS = r"^(null|http://(localhost|127\.0\.0\.1)(:\d+)?)$"
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=ORIGENES_PERMITIDOS,
-    allow_methods=["GET", "POST"],  # POST desde que existe uploads.py
+    allow_methods=["GET", "POST", "DELETE"],  # POST desde uploads.py, DELETE desde eliminar_video
     allow_headers=["*"],
 )
 
@@ -280,3 +280,51 @@ def posiciones_del_video(video_id: str) -> list[dict[str, Any]]:
         _requiere_video(conn, video_id)
         filas = db.positions_for_video(conn, video_id)
     return [_serializable(f) for f in filas]
+
+
+def _borrar_archivos_del_video(video_id: str) -> list[str]:
+    """Borra el video original y todo lo que el pipeline escribio para el
+    -incluida su calibracion de zonas-. Nunca lanza por un archivo que no
+    exista (borrar algo que ya no esta no es un error); devuelve los
+    nombres de lo que si se borro, para que quien pida el borrado sepa que
+    paso de verdad, no solo que "no hubo excepcion".
+
+    El punto (`.`) despues de `video_id` en cada patron no es decorativo:
+    todo archivo que este modulo o el pipeline escriben usa exactamente
+    `<video_id>.<algo>` como nombre (`.mp4`, `.detect.jsonl`,
+    `.interact.privacy.mp4`, `.calib.jpg`...), asi que sin ese punto un
+    video_id que fuera PREFIJO de otro (ej. `video_002` de un futuro
+    `video_0020`) podria borrar archivos ajenos."""
+    rutas = [uploads.VIDEOS_DIR / f"{video_id}.mp4", uploads.ZONES_DIR / f"{video_id}.json"]
+    if uploads.OUTPUT_DIR.is_dir():
+        rutas.extend(uploads.OUTPUT_DIR.glob(f"{video_id}.*"))
+
+    borrados = []
+    for ruta in rutas:
+        if ruta.exists():
+            ruta.unlink()
+            borrados.append(ruta.name)
+    return borrados
+
+
+@app.delete("/videos/{video_id}")
+def eliminar_video(video_id: str) -> dict[str, Any]:
+    """Borra un video por completo: su fila en PostgreSQL (con sus
+    `events`/`metrics` en cascada, ver `db.delete_video`) y todos sus
+    archivos en disco (`data/videos/`, `data/output/`, `data/zones/`).
+
+    NO se puede deshacer -no hay papelera-: por eso el dashboard pide
+    confirmar antes de llamar a esto. Las filas de `zones` (los nombres de
+    gondola/estante, compartidos entre videos que reusan la misma
+    calibracion de camara) nunca se tocan: son del MOBILIARIO, no de este
+    video en concreto."""
+    with db.get_connection() as conn:
+        borrado = db.delete_video(conn, video_id)
+    if not borrado:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay ningun video importado con video_id='{video_id}'.",
+        )
+
+    archivos_borrados = _borrar_archivos_del_video(video_id)
+    return {"video_id": video_id, "borrado": True, "archivos_borrados": archivos_borrados}

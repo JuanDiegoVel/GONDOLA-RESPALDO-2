@@ -39,3 +39,20 @@ async function getVideoMetrics(baseUrl, videoId, useMock) {
   if (useMock) return MOCK_METRICS[videoId] || [];
   return fetchFromApi(`${cleanBaseUrl(baseUrl)}/videos/${encodeURIComponent(videoId)}/metrics`);
 }
+async function deleteVideo(baseUrl, videoId) {
+  const response = await fetch(`${cleanBaseUrl(baseUrl)}/videos/${encodeURIComponent(videoId)}`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    let errorDetail = `Error al borrar el video (${response.status} ${response.statusText})`;
+    try {
+      const errorJson = await response.json();
+      if (errorJson && typeof errorJson.detail === 'string') errorDetail = errorJson.detail;
+    } catch {}
+    const err = new Error(errorDetail);
+    err.status = response.status;
+    throw err;
+  }
+  return response.json();
+}

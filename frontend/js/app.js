@@ -146,6 +146,17 @@ document.addEventListener('click', async (e) => {
   }
   else if (action === 'close-settings') setState({ isConfigModalOpen: false, configTest: null, configUrlDraft: null });
   else if (action === 'refresh-videos') loadVideos();
+  else if (action === 'eliminar-video') {
+    const actual = state.videos.find((v) => v.video_id === state.selectedVideoId);
+    const nombre = actual ? (actual.source_name || actual.video_id) : state.selectedVideoId;
+    // confirm() nativo, no un modal propio: es una unica pregunta de
+    // si/no antes de una accion que NO se puede deshacer (borra archivos
+    // del servidor, no solo la fila de la lista) -no hace falta mas
+    // ceremonia que esa para algo tan puntual.
+    if (window.confirm(`¿Eliminar "${nombre}"?\n\nEsto borra el video de la base de datos y TODOS sus archivos en el servidor (video, render, calibración). No se puede deshacer.`)) {
+      eliminarVideoActual();
+    }
+  }
   else if (action === 'retry-detail') loadVideoDetail(state.selectedVideoId);
   else if (action === 'retry-health') verifyHealth();
   else if (action === 'enable-mock') toggleMockMode(true);

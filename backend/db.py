@@ -164,6 +164,31 @@ def find_video(conn: psycopg.Connection, video_id: str) -> dict[str, Any] | None
     ).fetchone()
 
 
+def delete_video(conn: psycopg.Connection, video_id: str) -> bool:
+    """Borra un video de PostgreSQL. Devuelve True si de verdad habia una
+    fila que borrar, False si `video_id` no existia (para que el que llama
+    decida si eso es un 404).
+
+    Una sola sentencia: `events`/`metrics` tienen `ON DELETE CASCADE` contra
+    `videos.id` (ver schema.sql), asi que se van solos con la fila padre. Las
+    filas de `zones` NUNCA se tocan aqui a proposito -son globales
+    ('gondola_A', 'estante_1'...), compartidas entre videos que reusan la
+    misma calibracion de camara (ver docs/zones-format.md); borrar un video
+    no debe borrar la zona si otro video todavia la usa-.
+
+    No borra ningun archivo de disco (`data/videos/<id>.mp4`,
+    `data/output/<id>.*`, `data/zones/<id>.json`): esta funcion solo quita
+    el video de la base de datos, que es lo que lo hace aparecer en el
+    dashboard. Quien llame a esto decide aparte si tambien quiere borrar los
+    archivos (ver DELETE /videos/{video_id} en api.py)."""
+    fila = conn.execute(
+        "DELETE FROM videos WHERE video_id = %(video_id)s RETURNING id",
+        {"video_id": video_id},
+    ).fetchone()
+    conn.commit()
+    return fila is not None
+
+
 # ----------------------------------------------------------------------------
 # Zonas
 # ----------------------------------------------------------------------------

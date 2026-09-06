@@ -192,6 +192,12 @@ function renderVideoSelector() {
           </select>
         </div>
         <div class="flex items-center">${badge}</div>
+        ${current && !state.useMockMode ? `
+        <button type="button" data-action="eliminar-video" ${state.isDeletingVideo ? 'disabled' : ''}
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F3F2EF] hover:bg-[#9F2F2D]/10 rounded-md border border-[#EAEAEA] hover:border-[#9F2F2D]/30 text-xs font-semibold text-[#9F2F2D] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="Borrar este video de la base de datos y del servidor. No se puede deshacer.">
+          ${icon(state.isDeletingVideo ? 'refresh-cw' : 'trash', `w-3.5 h-3.5 ${state.isDeletingVideo ? 'animate-spin' : ''}`)} ${state.isDeletingVideo ? 'Borrando…' : 'Eliminar'}
+        </button>` : ''}
         <button type="button" data-action="abrir-comparacion"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F3F2EF] hover:bg-[#EAEAEA] rounded-md border border-[#EAEAEA] text-xs font-semibold text-[#2F3437] transition-colors">
           ${icon('trending-up', 'w-3.5 h-3.5 text-[#1F6C9F]')} Comparar dos videos

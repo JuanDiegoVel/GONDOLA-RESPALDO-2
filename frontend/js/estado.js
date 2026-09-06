@@ -67,6 +67,7 @@ const state = {
   isLoadingVideos: false,
   isLoadingDetail: false,
   isLoadingMetrics: false,
+  isDeletingVideo: false,
   errorVideos: null,
   errorDetail: null,
   errorMetrics: null,
@@ -249,6 +250,29 @@ function toggleMockMode(enabled) {
   localStorage.setItem('gondola_use_mock_mode', String(enabled));
   setState({ useMockMode: enabled });
   loadVideos();
+}
+
+// Borra el video elegido: su fila en PostgreSQL (con events/metrics en
+// cascada) y todos sus archivos en el servidor (ver DELETE
+// /videos/{video_id} en backend/api.py). No se puede deshacer -por eso
+// quien llama a esto (el manejador de 'eliminar-video', en app.js) ya pidio
+// confirmar antes-. No aplica en Modo Demostracion: los videos de ahi no
+// son filas de verdad, no hay nada que borrar en la API.
+async function eliminarVideoActual() {
+  const videoId = state.selectedVideoId;
+  if (!videoId || state.useMockMode) return;
+  setState({ isDeletingVideo: true });
+  try {
+    await deleteVideo(state.apiBaseUrl, videoId);
+    setState({
+      isDeletingVideo: false,
+      selectedVideoId: '', videoDetail: null,
+      zoneMetrics: [], zoneHierarchy: [], positions: [],
+    });
+    loadVideos();
+  } catch (err) {
+    setState({ isDeletingVideo: false, errorVideos: `No se pudo borrar el video: ${err.message}` });
+  }
 }
 
 // Arranque: pone el hash inicial si hace falta, engancha 'hashchange' (ver
