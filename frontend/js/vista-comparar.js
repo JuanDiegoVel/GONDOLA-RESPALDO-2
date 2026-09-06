@@ -58,11 +58,11 @@ function renderCompareNumbers(a, b) {
 
 // Una columna COMPLETA para un video de la comparacion: mismo contenido
 // que ve alguien mirando un solo video (video, resumen, zonas, mapa de
-// calor, resumen de zona, retroalimentacion) -antes esta vista solo traia
-// 4 numeros sueltos, y eso no alcanzaba para comparar de verdad dos
-// videos-. Reutiliza exactamente las mismas funciones de render que el
-// panel principal, pasandoles el bundle de este slot en vez del video
-// principal.
+// calor, resumen de zona, diagnostico de space management,
+// retroalimentacion) -antes esta vista solo traia 4 numeros sueltos, y eso
+// no alcanzaba para comparar de verdad dos videos-. Reutiliza exactamente
+// las mismas funciones de render que el panel principal, pasandoles el
+// bundle de este slot en vez del video principal.
 function renderVideoColumn(slot) {
   const bundle = bundleDe(slot);
   const videoId = bundle.videoId;
@@ -94,6 +94,7 @@ function renderVideoColumn(slot) {
     ${renderZonesSection(bundle, `${idPrefix}-`)}
     ${renderPositionsHeatmap(bundle)}
     ${renderZonesHeatmap(bundle)}
+    ${renderInsights(bundle)}
     ${renderFeedback(bundle)}
   </div>`;
 }

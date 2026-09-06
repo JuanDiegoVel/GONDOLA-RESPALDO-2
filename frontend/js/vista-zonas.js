@@ -492,8 +492,10 @@ function nivelConfianza(peopleCount) {
 // Diagnostico automatico ("Space Management en 10 segundos"): reglas
 // simples sobre los numeros ya calculados (nada de IA ni llamada extra a la
 // API) que arman 2-4 tarjetas de texto con una lectura y una accion
-// sugerida. Vive en la columna DERECHA del dashboard (ver app.js), debajo
-// de "Privacidad y Ética".
+// sugerida. En el panel de un solo video vive en la columna DERECHA (ver
+// app.js), debajo de "Privacidad y Ética"; en la comparacion se repite una
+// vez por columna (ver renderVideoColumn(), vista-comparar.js), por eso
+// toma un `bundle` igual que renderSummaryCards/renderZonesSection/etc.
 //
 // Cada tarjeta lleva un nivel de confianza (alta/media/baja) segun cuantas
 // personas distintas sostienen el patron -el sistema mide comportamiento
@@ -501,10 +503,10 @@ function nivelConfianza(peopleCount) {
 // empaque, sin reconocimiento visual de que es cada cosa), asi que el texto
 // de "accion" solo puede pedir REVISAR en sitio, nunca nombrar una causa
 // especifica que el sistema no tiene forma de ver.
-function renderInsights() {
-  if (!state.videoDetail) return '';
-  const d = state.videoDetail;
-  const zones = state.zoneMetrics;
+function renderInsights(bundle = bundleDe()) {
+  if (!bundle.detail) return '';
+  const d = bundle.detail;
+  const zones = bundle.metrics;
   const engagementRatio = d.people_count > 0 ? d.interaction_count / d.people_count : 0;
   const hasPickUps = d.pick_up_count > 0;
   const rejectionRatio = hasPickUps ? d.put_back_count / d.pick_up_count : 0;
