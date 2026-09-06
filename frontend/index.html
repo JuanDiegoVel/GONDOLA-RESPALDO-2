@@ -2422,8 +2422,22 @@ function initPageParticles() {
 let imagenCalibracion = null;
 let sondeoSubida = null;
 
+// sondearTrabajo() llama a setState() cada 2s mientras el prevuelo/proceso
+// esta en marcha, y setState() reconstruye el modal ENTERO
+// (#modals-portal.innerHTML = ...) en cada vuelta -incluidas las clases
+// 'modal-backdrop'/'modal-anim', que traen una animacion de ENTRADA (fade
+// + escala). Al recrear el mismo nodo con las mismas clases cada 2s, el
+// navegador vuelve a disparar esa animacion de entrada una y otra vez: el
+// modal "parpadea" (se ve pestanear) todo el tiempo que dura la subida,
+// no solo al abrirse -bug real, reportado en la practica-. Con esta bandera
+// la animacion de entrada se pinta SOLO la primera vez que el modal
+// aparece en pantalla; los repintados de despues (con contenido
+// actualizado: la barra de progreso, el mensaje) no vuelven a animarse.
+let subidaYaAnimada = false;
+
 function abrirSubida() {
   imagenCalibracion = null;
+  subidaYaAnimada = false;
   setState({ subida: { ...SUBIDA_VACIA(), abierto: true } });
 }
 
@@ -2431,6 +2445,7 @@ function cerrarSubida() {
   clearTimeout(sondeoSubida);
   sondeoSubida = null;
   imagenCalibracion = null;
+  subidaYaAnimada = false;
   setState({ subida: SUBIDA_VACIA() });
 }
 
@@ -2756,9 +2771,17 @@ function renderSubidaModal() {
     listo: `<button type="button" data-action="subida-ver" class="px-4 py-2 bg-[#111111] text-white rounded-lg text-xs font-semibold hover:bg-[#2F3437] transition-colors">Ver el video</button>`,
   }[s.paso] || '';
 
+  // Solo la PRIMERA vez que este modal se pinta desde que se abrio se le
+  // pone la animacion de entrada -las vueltas siguientes, mientras
+  // sondearTrabajo() actualiza el progreso cada 2s, la omiten (ver el
+  // docstring de subidaYaAnimada), para no "parpadear" todo el rato.
+  const animacionEntrada = subidaYaAnimada ? '' : 'modal-backdrop';
+  const animacionCaja = subidaYaAnimada ? '' : 'modal-anim';
+  subidaYaAnimada = true;
+
   return `
-  <div role="dialog" aria-modal="true" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-backdrop">
-    <div class="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-xl overflow-hidden modal-anim max-h-[92vh] flex flex-col">
+  <div role="dialog" aria-modal="true" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs ${animacionEntrada}">
+    <div class="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-xl overflow-hidden ${animacionCaja} max-h-[92vh] flex flex-col">
       <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
         <div class="flex items-center gap-2.5">
           <div class="p-2 rounded-lg bg-slate-900 text-white">${icon('upload', 'w-4 h-4')}</div>
