@@ -1,0 +1,287 @@
+.shadow-xs { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04); }
+.focus\:outline-hidden:focus { outline: none; }
+:root {
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+::selection { background: rgb(31 108 159 / 0.12); color: #1F6C9F; }
+/* ---------------------------------------------------------------------
+   TINTES PASTEL (claro y oscuro)
+   ---------------------------------------------------------------------
+   Antes todo era el mismo blanco/gris neutro y la pantalla se veia plana.
+   Ahora las superficies llevan un tinte muy leve tomado de los MISMOS
+   colores de acento que el dashboard ya usaba: el azul #1F6C9F, el ambar
+   #956400 y el rojo #9F2F2D. No hay ningun color nuevo: son los acentos
+   que la paleta ya tenia, usados en opacidades muy bajas como fondo.
+
+   El tinte va tanto en el fondo de la pagina COMO en las superficies. Solo
+   en el fondo casi no se notaba: las tarjetas son opacas y tapan la mayor
+   parte de la pantalla, asi que el degradado apenas asomaba por los huecos.
+
+   Aun asi el color se mantiene por debajo del contenido: los colores
+   semanticos de las tarjetas (verde=bien, rojo=alerta) y el mapa de calor
+   son DATOS, y tienen que seguir leyendose como la informacion, no
+   compitiendo con el decorado. Cada vez que se suban estos valores hay que
+   volver a comprobar el contraste del texto tenue (#787774 en claro,
+   #96938C en oscuro), que es el primero que se rompe.
+
+   `background-attachment: fixed` deja el degradado quieto al hacer
+   scroll: si se moviera, se notaria como una mancha viajando. */
+.app-bg {
+  background-color: #F4F6FA;
+  background-image:
+    radial-gradient(ellipse 80% 55% at 10% -12%, rgb(31 108 159 / 0.22), transparent 66%),
+    radial-gradient(ellipse 55% 45% at 98% 4%, rgb(159 47 45 / 0.10), transparent 64%),
+    radial-gradient(ellipse 75% 60% at 90% 106%, rgb(149 100 0 / 0.18), transparent 66%);
+  background-attachment: fixed;
+}
+/* `html:not(.dark)` no es adorno: sube la especificidad por encima de la
+   utilidad `.bg-white` que Tailwind inyecta en runtime (que empata con un
+   selector de atributo suelto y, al inyectarse despues, ganaria). Es el
+   espejo exacto del bloque `html.dark` de mas abajo. */
+html:not(.dark) [class~="bg-white"],
+html:not(.dark) [class~="bg-[#F9F9F8]"] { background-color: #F8FBFF; }
+html:not(.dark) [class~="bg-[#F7F6F3]"],
+html:not(.dark) [class~="bg-[#F3F2EF]"],
+html:not(.dark) [class~="bg-slate-50"],
+html:not(.dark) [class~="bg-slate-100"] { background-color: #E6EEF9; }
+html:not(.dark) [class~="border-[#EAEAEA]"],
+html:not(.dark) [class~="border-slate-100"],
+html:not(.dark) [class~="border-slate-200"] { border-color: #D8E3F0; }
+/* Al teñir las superficies subio su luminosidad, y el texto tenue se
+   quedaba en 3.83:1 sobre la superficie secundaria -por debajo del minimo
+   accesible de 4.5:1-. Se oscurecen los dos grises mas claros lo justo
+   para recuperarlo (4.93:1 y 4.66:1) en vez de despintar el fondo, que es
+   lo contrario de lo que se buscaba. */
+html:not(.dark) [class~="text-[#787774]"] { color: #67665F; }
+html:not(.dark) [class~="text-[#A8A29E]"] { color: #6B6963; }
+.tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+button, select, input, a, [data-action] {
+  transition: background-color .18s var(--ease), border-color .18s var(--ease),
+              color .18s var(--ease), box-shadow .22s var(--ease),
+              transform .18s var(--ease), opacity .18s var(--ease);
+}
+button:active, [data-action]:active { transform: scale(0.97); }
+select:disabled, button:disabled { transform: none; }
+.card-lift { transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease); }
+.card-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 24px -8px rgb(17 17 17 / 0.08); }
+.stagger-in > * { opacity: 0; transform: translateY(6px); animation: enter .5s var(--ease) forwards; }
+.stagger-in > *:nth-child(1) { animation-delay: .02s; }
+.stagger-in > *:nth-child(2) { animation-delay: .07s; }
+.stagger-in > *:nth-child(3) { animation-delay: .12s; }
+.stagger-in > *:nth-child(4) { animation-delay: .17s; }
+.stagger-in > *:nth-child(5) { animation-delay: .22s; }
+@keyframes enter { to { opacity: 1; transform: translateY(0); } }
+.skeleton {
+  background: linear-gradient(100deg, #f3f2ef 30%, #f7f6f3 45%, #f3f2ef 60%);
+  background-size: 250% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -50% 0; } }
+@keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalIn { from { opacity: 0; transform: scale(.94) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.modal-backdrop { animation: backdropIn .2s var(--ease); }
+.modal-anim { animation: modalIn .35s var(--ease-spring); }
+.kpi-bar { transition: transform .7s var(--ease); transform-origin: left; will-change: transform; }
+.row-hover { transition: background-color .15s var(--ease); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+/* ==========================================================================
+   MODO OSCURO
+   ==========================================================================
+   El dashboard esta escrito con clases de Tailwind sueltas por todo el
+   archivo (bg-white, text-[#2F3437], etc.), no con un sistema de variables
+   de color: agregar "dark:" a cada una de las ~2000 lineas de render*()
+   hubiera sido un cambio enorme y muy propenso a error para una sola
+   sesion. En vez de eso, este bloque intercepta esas MISMAS clases por su
+   nombre literal con selectores de atributo (`[class~="..."]`, que exige
+   que el token aparezca completo separado por espacios: no hay riesgo de
+   que "bg-slate-50" tambien capture "text-slate-500" por accidente, como
+   si pasaria con un simple *=). Activado agregando/quitando la clase
+   "dark" en <html> (ver toggle-dark-mode en el manejador de acciones y el
+   `document.documentElement.classList.toggle('dark', ...)` al inicio de
+   render()). Colores elegidos para mantener el mismo significado semantico
+   (verde=exito, ambar=alerta, rojo=peligro, azul=acento) con suficiente
+   contraste sobre fondos oscuros, no solo invertir blanco/negro. */
+html.dark { color-scheme: dark; }
+/* Mismos tres tintes que en claro (ver el bloque de .app-bg), un poco mas
+   presentes porque sobre fondo oscuro un 5% no se ve. El fondo tambien
+   pasa de gris neutro a un negro con una gota de azul. */
+html.dark body.app-bg {
+  background-color: #14161C;
+  background-image:
+    radial-gradient(ellipse 80% 55% at 10% -12%, rgb(31 108 159 / 0.34), transparent 66%),
+    radial-gradient(ellipse 55% 45% at 98% 4%, rgb(159 47 45 / 0.16), transparent 64%),
+    radial-gradient(ellipse 75% 60% at 90% 106%, rgb(149 100 0 / 0.26), transparent 66%);
+  background-attachment: fixed;
+}
+html.dark [class~="text-[#2F3437]"] { color: #EDEBE7; }
+html.dark [class~="text-[#111111]"] { color: #F5F3F0; }
+/* Tarjetas y superficies: antes gris neutro (#232326 / #1d1d20), ahora con
+   el mismo azul del tinte de fondo mezclado muy sutilmente, para que el
+   oscuro no se vea "sucio" y case con los tintes del fondo. */
+html.dark [class~="bg-white"],
+html.dark [class~="bg-[#F9F9F8]"] { background-color: #232935; }
+html.dark [class~="bg-[#F7F6F3]"],
+html.dark [class~="bg-[#F3F2EF]"],
+html.dark [class~="bg-slate-50"],
+html.dark [class~="bg-slate-100"] { background-color: #191E29; }
+html.dark [class~="bg-slate-200"] { background-color: #35353a; }
+html.dark [class~="bg-slate-300"] { background-color: #46464c; }
+html.dark [class~="bg-slate-800"] { background-color: #2c2c30; }
+html.dark [class~="bg-slate-900"] { background-color: #232326; }
+html.dark [class~="bg-[#D6D3D1]"] { background-color: #46464c; }
+html.dark [class~="bg-[#EAEAEA]"] { background-color: #2c2c30; }
+/* Bordes */
+html.dark [class~="border-slate-100"],
+html.dark [class~="border-slate-200"],
+html.dark [class~="border-[#EAEAEA]"],
+html.dark [class~="border-[#F3F2EF]"] { border-color: #333C4C; }
+html.dark [class~="border-slate-300"],
+html.dark [class~="border-[#D6D3D1]"] { border-color: #46464c; }
+html.dark [class~="border-black"] { border-color: #4a4a50; }
+/* Texto en escala de gris: el orden se invierte a proposito -slate-900
+   era el mas oscuro/prominente en claro, aqui debe ser el mas claro- */
+html.dark [class~="text-slate-900"] { color: #F5F3F0; }
+html.dark [class~="text-slate-700"],
+html.dark [class~="text-[#44403C]"] { color: #D6D3CE; }
+html.dark [class~="text-slate-600"],
+html.dark [class~="text-[#57534E]"] { color: #B7B4AD; }
+html.dark [class~="text-slate-500"],
+html.dark [class~="text-[#787774]"] { color: #96938C; }
+html.dark [class~="text-slate-400"],
+/* Sube de #6E6B65 a #96938C: en oscuro ese gris se quedaba en 2.95:1
+   sobre la tarjeta -ilegible, y ya venia asi de antes de tenir nada-.
+   Ahora da 4.76:1 y las notas al pie se pueden leer de verdad. */
+html.dark [class~="text-[#A8A29E]"] { color: #96938C; }
+html.dark [class~="text-[#D6D3D1]"] { color: #8B887F; }
+html.dark [class~="text-[#E5E3DE]"] { color: #E5E3DE; }
+/* Acento azul de marca: mismo tono, un poco mas claro para contraste */
+html.dark [class~="text-[#1F6C9F]"] { color: #5CACD9; }
+html.dark [class~="hover:text-[#18567D]"]:hover { color: #7EC2E6; }
+html.dark [class~="bg-[#1F6C9F]"] { background-color: #2D82B5; }
+html.dark [class~="hover:bg-[#18567D]"]:hover { background-color: #256E92; }
+html.dark [class~="border-[#1F6C9F]"] { border-color: #5CACD9; }
+/* Exito/verde */
+html.dark [class~="bg-emerald-50"],
+html.dark [class~="bg-[#EDF3EC]"] { background-color: #16261c; }
+html.dark [class~="border-emerald-200"],
+html.dark [class~="border-[#C7D6C5]"] { border-color: #2d4436; }
+html.dark [class~="text-emerald-600"],
+html.dark [class~="text-emerald-900"],
+html.dark [class~="text-[#346538]"],
+html.dark [class~="text-[#2B5230]"] { color: #7FCE9C; }
+/* Alerta/ambar */
+html.dark [class~="bg-amber-50"],
+html.dark [class~="bg-[#FBF3DB]"] { background-color: #2b2410; }
+html.dark [class~="border-amber-200"],
+html.dark [class~="border-[#EDD9A3]"] { border-color: #4a3c17; }
+html.dark [class~="text-amber-600"],
+html.dark [class~="text-amber-800"],
+html.dark [class~="text-amber-900"],
+html.dark [class~="text-[#956400]"],
+html.dark [class~="text-[#7A5200]"],
+html.dark [class~="hover:text-[#5C3F00]"]:hover,
+html.dark [class~="text-[#B8790B]"] { color: #E8B84D; }
+/* Peligro/rojo */
+html.dark [class~="bg-red-50"] { background-color: #341414; }
+html.dark [class~="border-red-100"],
+html.dark [class~="border-red-200"] { border-color: #4a2320; }
+html.dark [class~="text-red-600"],
+html.dark [class~="text-red-800"],
+html.dark [class~="text-red-900"],
+html.dark [class~="text-[#9F2F2D]"],
+html.dark [class~="text-[#7F2523]"] { color: #F09891; }
+/* Indigo (modal de configuracion) */
+html.dark [class~="bg-indigo-50"],
+html.dark [class~="bg-indigo-100"] { background-color: #201f42; }
+html.dark [class~="bg-indigo-600"] { background-color: #6366F1; }
+html.dark [class~="text-indigo-600"],
+html.dark [class~="text-indigo-700"] { color: #ABB4FA; }
+html.dark [class~="border-indigo-200"] { border-color: #34346b; }
+/* Superficies oscuras que YA eran oscuras en modo claro (tarjeta de
+   privacidad, placeholder de video): se dejan iguales, solo se separa
+   un poco mas el borde para que no se fundan con el fondo de pagina. */
+html.dark [class~="border-[#3A3F42]"] { border-color: #4a4f52; }
+html.dark [class~="border-dashed"] { border-color: #46464c; }
+html.dark .skeleton {
+  background: linear-gradient(100deg, #232326 30%, #2c2c30 45%, #232326 60%);
+  background-size: 250% 100%;
+}
+html.dark [class~="shadow-xs"],
+html.dark [class~="shadow-sm"] { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4); }
+html.dark [class~="shadow-xl"] { box-shadow: 0 20px 40px -10px rgb(0 0 0 / 0.6); }
+/* Estados :hover -son un token de clase DISTINTO ("hover:bg-slate-100"
+   no es "bg-slate-100"), asi que necesitan su propia regla aparte. */
+html.dark [class~="hover:bg-[#EAEAEA]"]:hover,
+html.dark [class~="hover:bg-[#F7F6F3]"]:hover,
+html.dark [class~="hover:bg-slate-100"]:hover { background-color: #2c2c30; }
+html.dark [class~="hover:bg-slate-200"]:hover { background-color: #38383d; }
+html.dark [class~="hover:bg-slate-800"]:hover { background-color: #3a3a40; }
+html.dark [class~="hover:bg-indigo-100"]:hover { background-color: #2b2a57; }
+html.dark [class~="hover:text-[#111111]"]:hover,
+html.dark [class~="hover:text-slate-900"]:hover { color: #F5F3F0; }
+html.dark [class~="hover:text-slate-700"]:hover { color: #D6D3CE; }
+html.dark [class~="hover:text-[#787774]"]:hover { color: #96938C; }
+/* Variantes con opacidad ("bg-slate-50/70") son tambien un token distinto */
+html.dark [class~="bg-slate-50/70"],
+html.dark [class~="bg-slate-200/70"] { background-color: rgb(35 35 38 / 0.7); }
+html.dark [class~="bg-red-50/70"] { background-color: rgb(52 20 20 / 0.7); }
+html.dark [class~="bg-slate-900/60"] { background-color: rgb(0 0 0 / 0.6); }
+/* Tarjetas con degradado puesto por style="" inline (no una clase de
+   Tailwind): un inline style le gana a CUALQUIER selector de clase por
+   especificidad, sin importar el orden -esta fue la causa real de que
+   "Mapa de Calor Real" y las tarjetas de gondola/estante se vieran
+   lavadas en modo oscuro, con texto casi invisible sobre un fondo que
+   seguia blanco-. Un !important en la hoja de estilos SI le gana a un
+   inline style sin !important (regla poco conocida de CSS), asi que se
+   engancha por el propio valor del atributo style con [style*="..."]. */
+html.dark [style*="linear-gradient(165deg,#FFFFFF 0%,#EEF1F0 100%)"] { background: linear-gradient(165deg,#1d1d20 0%,#232326 100%) !important; }
+html.dark [style*="linear-gradient(160deg,#FFFFFF 0%,#F3F2EF 100%)"] { background: linear-gradient(160deg,#1d1d20 0%,#232326 100%) !important; }
+/* <select> nativo: color-scheme le pide al navegador que dibuje sus
+   controles nativos (incluida la lista desplegable) en tema oscuro, pero
+   algunos navegadores solo lo respetan si tambien se fija en el elemento
+   mismo, no solo en un ancestro. */
+html.dark select, html.dark option { color-scheme: dark; background-color: #232326; color: #EDEBE7; }
+/* Variantes con opacidad de colores arbitrarios ("bg-[#EDF3EC]/60"): son
+   un token de clase distinto a "bg-[#EDF3EC]" (sin opacidad), asi que
+   necesitan su propia regla -eran las tarjetas de "Diagnostico" que se
+   veian lavadas: el fondo se quedaba claro y translucido sobre una
+   tarjeta ya oscura, con el texto (ya oscurecido por su propia regla)
+   casi invisible encima-. */
+html.dark [class~="bg-[#EDF3EC]/60"] { background-color: rgb(22 38 28 / 0.6); }
+html.dark [class~="bg-[#FBF3DB]/40"] { background-color: rgb(43 36 16 / 0.5); }
+html.dark [class~="bg-[#1F6C9F]/10"] { background-color: rgb(92 172 217 / 0.15); }
+html.dark [class~="border-[#1F6C9F]/40"] { border-color: rgb(92 172 217 / 0.4); }
+html.dark [class~="border-black/5"] { border-color: rgb(255 255 255 / 0.08); }
+/* Modal de "Subir video": mismos colores semanticos (azul=marca,
+   verde=exito, ambar=alerta, rojo=peligro) en variantes de opacidad que
+   no aparecian en ningun otro lado del dashboard. */
+html.dark [class~="bg-[#1F6C9F]/5"] { background-color: rgb(92 172 217 / 0.08); }
+html.dark [class~="bg-[#346538]/5"] { background-color: rgb(127 206 156 / 0.08); }
+html.dark [class~="border-[#346538]/30"] { border-color: rgb(127 206 156 / 0.3); }
+html.dark [class~="bg-[#956400]/5"] { background-color: rgb(232 184 77 / 0.08); }
+html.dark [class~="border-[#956400]/30"] { border-color: rgb(232 184 77 / 0.3); }
+html.dark [class~="bg-[#9F2F2D]/5"],
+html.dark [class~="bg-[#9F2F2D]/10"] { background-color: rgb(240 152 145 / 0.1); }
+html.dark [class~="border-[#9F2F2D]/30"] { border-color: rgb(240 152 145 / 0.3); }
+html.dark [class~="bg-[#111111]"] { background-color: #2a2a2e; }
+html.dark [class~="hover:bg-[#2F3437]"]:hover { background-color: #3a3a40; }
+
+/* Reporte en PDF: window.print() sobre la pantalla normal, ocultando lo
+   que no tiene sentido en papel (botones, el reproductor de video, el
+   portal del video que vive fuera de #root) y mostrando un encabezado de
+   reporte que en pantalla esta oculto. Nada de esto rasteriza nada: el
+   texto sigue siendo texto real (seleccionable, buscable) en el PDF. */
+.solo-imprimir { display: none; }
+@media print {
+  .no-imprimir, #video-player-portal, #video-compare-a-portal, #video-compare-b-portal { display: none !important; }
+  .solo-imprimir { display: block !important; }
+  body { background: #fff !important; }
+  main { max-width: 100% !important; padding: 0 !important; }
+  .shadow-xs { box-shadow: none !important; }
+  a[href]:after { content: ''; }
+}
