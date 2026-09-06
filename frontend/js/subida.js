@@ -190,51 +190,71 @@ function initLienzoZonas() {
     pintarLienzo();
   };
 
+  // Pintar Y enganchar los manejadores de mouse viven en la MISMA funcion
+  // -activar()-, llamada desde los DOS caminos posibles (imagen ya cargada
+  // de una vuelta anterior, o recien terminada de cargar) en vez de que
+  // enganchar los manejadores depende de una SEGUNDA llamada a
+  // initLienzoZonas() despues de la primera (la de la imagen). Antes esa
+  // segunda llamada la disparaba gratis el sondeo de subida, que volvia a
+  // renderizar el modal entero cada 2s -incluso ya en el paso 'zonas', un
+  // bug real de parpadeo, arreglado en sondearTrabajo()-. Al arreglar eso
+  // se corto tambien la unica repeticion que hacia que esta funcion
+  // llegara alguna vez a enganchar onmousedown/onmousemove/onmouseup:
+  // la imagen se veia, pero arrastrar para dibujar un estante no hacia
+  // nada -bug real, reportado en la practica, sintoma inverso al parpadeo
+  // pero misma causa raiz-.
+  const activar = () => {
+    dibujar();
+
+    // Arrastrar para crear un rectangulo. Durante el arrastre NO se llama a
+    // setState(): repintar todo el dashboard en cada mousemove daria tirones.
+    // Solo al soltar se guarda el rectangulo y se vuelve a renderizar -eso
+    // SI dispara un render() nuevo, que crea un <canvas> nuevo, por eso
+    // activar() se vuelve a llamar entera la proxima vez en vez de enganchar
+    // los manejadores una sola vez para siempre.
+    let inicio = null;
+    const aFrame = (e) => {
+      const caja = lienzo.getBoundingClientRect();
+      const escala = imagenCalibracion.naturalWidth / caja.width;
+      return { x: (e.clientX - caja.left) * escala, y: (e.clientY - caja.top) * escala };
+    };
+    lienzo.onmousedown = (e) => { if (state.subida.rects.length < 4) inicio = aFrame(e); };
+    lienzo.onmousemove = (e) => {
+      if (!inicio) return;
+      const p = aFrame(e);
+      pintarLienzo();
+      const ctx = lienzo.getContext('2d');
+      const escala = lienzo.width / imagenCalibracion.naturalWidth;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = '#9F2F2D';
+      ctx.strokeRect(inicio.x * escala, inicio.y * escala, (p.x - inicio.x) * escala, (p.y - inicio.y) * escala);
+      ctx.setLineDash([]);
+    };
+    lienzo.onmouseup = (e) => {
+      if (!inicio) return;
+      const p = aFrame(e);
+      const r = {
+        x: Math.min(inicio.x, p.x), y: Math.min(inicio.y, p.y),
+        w: Math.abs(p.x - inicio.x), h: Math.abs(p.y - inicio.y),
+        name: `Estante ${state.subida.rects.length + 1}`, categoria: '',
+      };
+      inicio = null;
+      // Un clic sin arrastrar no es un estante: se ignora en vez de crear un
+      // rectangulo de 2 px que despues hay que borrar a mano.
+      if (r.w < 20 || r.h < 20) { pintarLienzo(); return; }
+      actualizarSubida({ rects: [...state.subida.rects, r] });
+    };
+    lienzo.onmouseleave = () => { inicio = null; pintarLienzo(); };
+  };
+
   if (!imagenCalibracion) {
     const img = new Image();
-    img.onload = () => { imagenCalibracion = img; dibujar(); };
+    img.onload = () => { imagenCalibracion = img; activar(); };
     img.onerror = () => actualizarSubida({ error: 'No pude cargar el fotograma de calibración.' });
     img.src = `${cleanBaseUrl(state.apiBaseUrl)}/uploads/${state.subida.jobId}/frame`;
     return;
   }
-  dibujar();
-
-  // Arrastrar para crear un rectangulo. Durante el arrastre NO se llama a
-  // setState(): repintar todo el dashboard en cada mousemove daria tirones.
-  // Solo al soltar se guarda el rectangulo y se vuelve a renderizar.
-  let inicio = null;
-  const aFrame = (e) => {
-    const caja = lienzo.getBoundingClientRect();
-    const escala = imagenCalibracion.naturalWidth / caja.width;
-    return { x: (e.clientX - caja.left) * escala, y: (e.clientY - caja.top) * escala };
-  };
-  lienzo.onmousedown = (e) => { if (state.subida.rects.length < 4) inicio = aFrame(e); };
-  lienzo.onmousemove = (e) => {
-    if (!inicio) return;
-    const p = aFrame(e);
-    pintarLienzo();
-    const ctx = lienzo.getContext('2d');
-    const escala = lienzo.width / imagenCalibracion.naturalWidth;
-    ctx.setLineDash([6, 4]);
-    ctx.strokeStyle = '#9F2F2D';
-    ctx.strokeRect(inicio.x * escala, inicio.y * escala, (p.x - inicio.x) * escala, (p.y - inicio.y) * escala);
-    ctx.setLineDash([]);
-  };
-  lienzo.onmouseup = (e) => {
-    if (!inicio) return;
-    const p = aFrame(e);
-    const r = {
-      x: Math.min(inicio.x, p.x), y: Math.min(inicio.y, p.y),
-      w: Math.abs(p.x - inicio.x), h: Math.abs(p.y - inicio.y),
-      name: `Estante ${state.subida.rects.length + 1}`, categoria: '',
-    };
-    inicio = null;
-    // Un clic sin arrastrar no es un estante: se ignora en vez de crear un
-    // rectangulo de 2 px que despues hay que borrar a mano.
-    if (r.w < 20 || r.h < 20) { pintarLienzo(); return; }
-    actualizarSubida({ rects: [...state.subida.rects, r] });
-  };
-  lienzo.onmouseleave = () => { inicio = null; pintarLienzo(); };
+  activar();
 }
 
 // --- Las seis pantallas --------------------------------------------------
