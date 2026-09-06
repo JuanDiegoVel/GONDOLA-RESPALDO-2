@@ -76,7 +76,7 @@ function renderHeader() {
           <h1 class="text-lg sm:text-xl font-bold tracking-tight text-[#111111]">CodeBolts</h1>
           <span class="text-[11px] font-medium text-[#787774]">v2.4.0</span>
         </div>
-        <p class="text-[11px] text-[#787774] hidden sm:block">Métricas de flujo, permanencia y planogramas</p>
+        <p class="text-[11px] text-[#787774] hidden sm:block">Góndola Inteligente · Métricas de flujo, permanencia y planogramas</p>
       </div>
     </div>
     <div class="flex items-center gap-3">

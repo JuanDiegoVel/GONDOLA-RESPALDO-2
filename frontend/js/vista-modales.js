@@ -144,6 +144,7 @@ function renderPantallaInicio() {
 
       <div class="space-y-2">
         <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-[#111111]">CodeBolts</h1>
+        <p class="text-[11px] font-medium text-[#787774] uppercase tracking-[0.1em]">Góndola Inteligente</p>
         <p class="text-sm text-[#57534E] leading-relaxed">
           Analiza video de cámaras de tienda para entender cómo se mueven los clientes
           frente a una góndola: cuántos pasan, dónde se detienen y qué productos tocan,
