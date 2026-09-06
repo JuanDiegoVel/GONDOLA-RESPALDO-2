@@ -832,12 +832,42 @@ def _color_de_interaccion(evento: Event, momentos_por_track: dict) -> tuple[int,
     return _COLOR_POR_INTERACCION[tipo]
 
 
-def _etiqueta_de_interaccion(evento: Event, momentos_por_track: dict) -> str:
-    base = f"id {evento.track_id}"
+def _etiqueta_de_interaccion(
+    evento: Event, momentos_por_track: dict, nombres_por_zona: dict[tuple[str, str], str],
+) -> str:
+    """"Persona 3 · Estante 2 · 12.4s" -o solo "Persona 3" si esta fuera de
+    toda zona, que es cuando `zone.segment`/`metrics.dwell_time` son `None`
+    (ver el contrato). El nombre de la zona sale de `nombres_por_zona`
+    (`(zone_id, segment) -> nombre legible`, armado en `_renderizar` a
+    partir del archivo de calibracion): `evento.zone.segment` es el slug
+    interno ("estante_2"), no lo que alguien escribio en el dashboard al
+    dibujar los estantes ("Estante 2", o el nombre que le haya puesto)."""
+    base = f"Persona {evento.track_id}"
+    if evento.zone.zone_id is not None and evento.zone.segment is not None:
+        clave = (evento.zone.zone_id, evento.zone.segment)
+        base += f" · {nombres_por_zona.get(clave, evento.zone.segment)}"
+        if evento.metrics.dwell_time is not None:
+            base += f" · {evento.metrics.dwell_time:.1f}s"
     tipo = _interaccion_activa(evento.track_id, evento.timestamp, momentos_por_track)
     if tipo is None:
         return base
     return f"{base} · {tipo.value}!"
+
+
+def _color_actividad(fraccion: float) -> tuple[int, int, int]:
+    """Un color BGR interpolado entre frio (poca interaccion) y calido
+    (mucha) -mismo criterio de "mapa de calor" que ya usa el dashboard
+    (renderZonesHeatmap, en frontend/js/vista-zonas.js), pero resuelto aqui
+    en BGR (OpenCV) en vez de CSS, para que se vea directamente sobre el
+    video-. `fraccion` es 0..1, la actividad de esta zona sobre la zona MAS
+    activa del mismo video (0 = ninguna interaccion en absoluto, 1 = la mas
+    concurrida): asi el color es siempre relativo a este video en concreto,
+    no a una escala fija que no signifique nada para clips muy distintos
+    entre si."""
+    fraccion = max(0.0, min(1.0, fraccion))
+    frio = (200, 130, 60)    # azul apagado
+    calido = (40, 90, 230)   # naranja/rojo
+    return tuple(int(f + (c - f) * fraccion) for f, c in zip(frio, calido))
 
 
 # Si dos personas tienen una interaccion activa en el mismo frame, cual se
@@ -867,10 +897,46 @@ def _estado_del_frame(
     return min(activos, key=lambda a: _PRIORIDAD_ESTADO[a])
 
 
-def _renderizar(cfg: Config, ruta_interact: Path) -> None:
+def _zonas_para_dibujar(zonas: ZonesConfig, eventos_ordenados: list[Event]) -> list[ZonaDibujo]:
+    """Un `ZonaDibujo` por estante, coloreado segun su actividad relativa
+    DENTRO de este video (ver `_color_actividad`). Cuenta interacciones
+    -APPROACH+PICK_UP+PUT_BACK, la misma definicion de `interaction_count`
+    que ya usa `gondola/stages/metrics.py`- en vez de gente/dwell_time: es
+    la actividad de NEGOCIO ("aqui la gente hace algo con el producto"), no
+    solo trafico de paso. `eventos_ordenados` ya esta completo en memoria
+    (lo carga `_renderizar` para poder ordenarlo por frame), asi que este
+    conteo es un recorrido mas sobre una lista que ya existia, no una
+    lectura nueva del disco."""
+    from gondola.video.render import ZonaDibujo
+
+    interacciones_por_zona: dict[tuple[str, str], int] = {}
+    for evento in eventos_ordenados:
+        if evento.zone.zone_id is not None and evento.interaction.event is not None:
+            clave = (evento.zone.zone_id, evento.zone.segment)
+            interacciones_por_zona[clave] = interacciones_por_zona.get(clave, 0) + 1
+
+    maximo = max(interacciones_por_zona.values(), default=0)
+    dibujo = []
+    for gondola, estante in zonas.shelves():
+        clave = (gondola.zone_id, estante.segment)
+        cuenta = interacciones_por_zona.get(clave, 0)
+        fraccion = cuenta / maximo if maximo else 0.0
+        f = estante.floor_zone
+        dibujo.append(ZonaDibujo(
+            x=f.x, y=f.y, width=f.width, height=f.height,
+            etiqueta=f"{gondola.name} · {estante.name}",
+            color=_color_actividad(fraccion),
+        ))
+    return dibujo
+
+
+def _renderizar(cfg: Config, ruta_interact: Path, zonas: ZonesConfig) -> None:
     """Segunda pasada, SOLO para dibujar: lee <video_id>.interact.jsonl ya
     terminado y pinta un video que resalta el instante exacto de cada
-    APPROACH/PICK_UP/PUT_BACK.
+    APPROACH/PICK_UP/PUT_BACK, con las zonas de la calibracion de fondo
+    (coloreadas por actividad) para que alguien sin contexto del proyecto
+    entienda que esta viendo -antes de esto, el render eran cajas flotando
+    sobre una rejilla vacia, sin ninguna referencia-.
 
     Es una pasada aparte, no metida dentro de `_procesar()`, a proposito:
     `_procesar()` entrega eventos con un retardo de latencia (ver su
@@ -905,38 +971,50 @@ def _renderizar(cfg: Config, ruta_interact: Path) -> None:
     print(f"[interact] Render: resaltando {n_momentos} interaccion(es) "
           f"con una ventana de +/-{VENTANA_RESALTADO_S}s cada una")
 
-    # Contador ACUMULADO de tomas, para la cabecera (ver 'productos' en
-    # Renderer.write()): a diferencia de estado_extra (una ventana que
-    # aparece y desaparece), este numero sube en el instante del PICK_UP y
-    # se queda ahi el resto del video -mismo estilo que 'personas'-. Los
-    # timestamps ya vienen en orden (eventos_ordenados esta ordenado por
-    # frame), asi que un puntero que solo avanza basta: no hace falta
-    # recontar en cada frame.
-    timestamps_pick_up = [
-        e.timestamp for e in eventos_ordenados
-        if e.interaction.event is InteractionEvent.PICK_UP
-    ]
-    idx_pick_up = 0
+    zonas_dibujo = _zonas_para_dibujar(zonas, eventos_ordenados)
+    nombres_por_zona = {
+        (gondola.zone_id, estante.segment): estante.name
+        for gondola, estante in zonas.shelves()
+    }
+
+    # Contadores ACUMULADOS para la cabecera (ver Renderer.write()): a
+    # diferencia de estado_extra (una ventana que aparece y desaparece),
+    # estos numeros suben en el instante del evento y se quedan ahi el resto
+    # del video -mismo estilo que 'personas'-. Los timestamps ya vienen en
+    # orden (eventos_ordenados esta ordenado por frame), asi que un puntero
+    # que solo avanza basta para cada uno: no hace falta recontar en cada
+    # frame.
+    timestamps_interaccion = [e.timestamp for e in eventos_ordenados if e.interaction.event is not None]
+    timestamps_pick_up = [e.timestamp for e in eventos_ordenados if e.interaction.event is InteractionEvent.PICK_UP]
+    timestamps_put_back = [e.timestamp for e in eventos_ordenados if e.interaction.event is InteractionEvent.PUT_BACK]
+    idx_interaccion = idx_pick_up = idx_put_back = 0
 
     video_salida = pipeline.render_path("interact", cfg, cfg.render_mode)
     with VideoReader(cfg.video_path) as video, Renderer(
-        video_salida, cfg.render_mode, video.info.width, video.info.height, video.info.fps
+        video_salida, cfg.render_mode, video.info.width, video.info.height, video.info.fps,
+        zonas=zonas_dibujo,
     ) as renderer:
         print(f"[interact] Render: {cfg.render_mode}  ->  {video_salida.name}")
         for indice, timestamp, imagen, grupo in _fusionar_con_video(
             iter(grupos), video.frames(cfg.frame_stride, cfg.max_frames)
         ):
             if imagen is not None:
+                while idx_interaccion < len(timestamps_interaccion) and timestamps_interaccion[idx_interaccion] <= timestamp:
+                    idx_interaccion += 1
                 while idx_pick_up < len(timestamps_pick_up) and timestamps_pick_up[idx_pick_up] <= timestamp:
                     idx_pick_up += 1
+                while idx_put_back < len(timestamps_put_back) and timestamps_put_back[idx_put_back] <= timestamp:
+                    idx_put_back += 1
                 estado = _estado_del_frame(grupo, momentos_por_track)
                 renderer.write(
                     imagen, grupo, indice, timestamp,
                     color_de=lambda e: _color_de_interaccion(e, momentos_por_track),
-                    etiqueta_de=lambda e: _etiqueta_de_interaccion(e, momentos_por_track),
+                    etiqueta_de=lambda e: _etiqueta_de_interaccion(e, momentos_por_track, nombres_por_zona),
                     estado_extra=f"¡{estado.value}!" if estado else None,
                     color_estado=_COLOR_POR_INTERACCION.get(estado) if estado else None,
                     productos=idx_pick_up,
+                    interacciones=idx_interaccion,
+                    devoluciones=idx_put_back,
                 )
 
 
@@ -983,7 +1061,7 @@ def run(cfg: Config) -> int:
     )
     transcurrido = time.perf_counter() - inicio
 
-    _renderizar(cfg, rutas.output_path)
+    _renderizar(cfg, rutas.output_path, zonas)
 
     ruta_resumen = pipeline.summary_path("interact", cfg)
     _escribir_resumen(ruta_resumen, cfg, ruta_zonas, info_video, resumen, transcurrido)

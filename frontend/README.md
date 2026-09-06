@@ -124,9 +124,18 @@ Tailwind vendorizado (ver "Qué instalar", más abajo).
   Un modal (ícono ⚙️ en el header) permite apagar el modo demo, cambiar la
   URL de la API o probar la conexión.
 - Video anonimizado embebido: `GET /videos/{id}/render` reproducido en un
-  `<video>` normal (fondo gris inventado, cajas de detección, y una
-  insignia + contador acumulado de "productos" en la cabecera cuando hay
-  un PICK_UP/PUT_BACK). El `<video>` vive en un "portal" fuera de `#root`
+  `<video>` normal. Sobre el fondo gris inventado (cero píxeles reales, ver
+  `ai-service/gondola/video/render.py`) se dibujan los rectángulos de las
+  zonas de la calibración -con su nombre, y coloreados de frío a cálido
+  según su actividad, el mapa de calor del reto visible directamente en el
+  video- y una silueta simple (cabeza + cuerpo, sin ningún rasgo) por cada
+  persona detectada, con su zona y permanencia acumulada al lado ("Persona
+  3 · Estante 2 · 12.4s"). La caja cambia de color y anuncia el evento un
+  instante cuando hay un PICK_UP/PUT_BACK/APPROACH, y la cabecera trae los
+  contadores acumulados de personas, interacciones, pick-ups y put-backs.
+  Pedido explícito: antes eran cajas de color flotando sobre una rejilla
+  vacía, y alguien sin contexto del proyecto no entendía qué estaba viendo.
+  El `<video>` vive en un "portal" fuera de `#root`
   (`crearReproductorPersistente()` en `js/reproductor.js`), no dentro de
   la plantilla que se reconstruye en cada `render()`: si viviera ahí
   adentro, cada dato nuevo que llega (zonas, posiciones, métricas llegan

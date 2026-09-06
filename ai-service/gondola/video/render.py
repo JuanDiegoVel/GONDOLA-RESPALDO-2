@@ -20,13 +20,31 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, NamedTuple, Sequence
 
 import cv2
 import numpy as np
 
 from gondola.contract import Event
 from gondola.errors import VideoError
+
+
+class ZonaDibujo(NamedTuple):
+    """Un rectangulo de PISO (mismo formato que `FloorZone`, en
+    `gondola/zones_config.py`) para dibujar de fondo en el render 'privacy':
+    coordenadas de MOBILIARIO fijo -de donde sale `floor_zone` en el archivo
+    de calibracion-, nunca de una persona. Por eso se puede dibujar incluso
+    en el modo que no muestra un solo pixel real: no es dato de nadie, es la
+    tienda. `color` ya viene resuelto (ver `_color_actividad` en
+    `gondola/stages/interact.py`): este modulo solo dibuja, no decide que
+    tan "caliente" esta una zona."""
+
+    x: float
+    y: float
+    width: float
+    height: float
+    etiqueta: str
+    color: tuple[int, int, int]
 
 # El video que se sube al dashboard tiene que reproducirse en un <video> de
 # navegador, y ningun navegador sabe decodificar 'mp4v' (MPEG-4 Part 2, el
@@ -65,11 +83,15 @@ class Renderer:
     llama no necesita repetir `if modo != "none"` en cada frame.
     """
 
-    def __init__(self, destino: Path, modo: str, ancho: int, alto: int, fps: float):
+    def __init__(
+        self, destino: Path, modo: str, ancho: int, alto: int, fps: float,
+        zonas: Sequence[ZonaDibujo] = (),
+    ):
         self.modo = modo
         self.destino = destino
         self.ancho = ancho
         self.alto = alto
+        self.zonas = zonas
         self._writer = None
 
         if modo == "none":
@@ -104,6 +126,8 @@ class Renderer:
         estado_extra: str | None = None,
         color_estado: tuple[int, int, int] | None = None,
         productos: int | None = None,
+        interacciones: int | None = None,
+        devoluciones: int | None = None,
     ) -> None:
         """Escribe un frame. En modo privacy, `frame_original` se ignora.
 
@@ -113,15 +137,17 @@ class Renderer:
         sin duplicar nada de OpenCV fuera de este modulo.
 
         `estado_extra`/`color_estado` son para un aviso TEMPORAL en la
-        cabecera (una ventana de segundos, ver 'interact'); `productos` es
-        un CONTADOR ACUMULADO que se queda ahi el resto del video, igual que
-        `personas` -ver `_dibujar_cabecera`-.
+        cabecera (una ventana de segundos, ver 'interact'); `productos`,
+        `interacciones` y `devoluciones` son CONTADORES ACUMULADOS que se
+        quedan ahi el resto del video, igual que `personas` -ver
+        `_dibujar_cabecera`-.
         """
         if self._writer is None:
             return
 
         if self.modo == "privacy":
             lienzo = self._lienzo_neutro()
+            self._dibujar_zonas(lienzo)
         else:
             lienzo = frame_original.copy()
 
@@ -131,9 +157,53 @@ class Renderer:
             self._dibujar_caja(lienzo, evento, color, etiqueta)
 
         self._dibujar_cabecera(
-            lienzo, indice, timestamp, len(eventos), estado_extra, color_estado, productos
+            lienzo, indice, timestamp, len(eventos), estado_extra, color_estado,
+            productos, interacciones, devoluciones,
         )
         self._writer.write(lienzo)
+
+    def _dibujar_lineas_estante(self, lienzo: np.ndarray, x1: int, y1: int, x2: int, y2: int) -> None:
+        """Un par de lineas horizontales dentro del rectangulo de zona, para
+        que se lea como "un estante con niveles" y no como un bloque de
+        color liso -mismo pictograma que el boceto de la portada
+        (frontend/js/vista-modales.js): la góndola ahí tambien es un
+        rectangulo con divisiones, no una silueta fotorrealista-. Con solo
+        dos lineas por zona el costo es minimo (esto se repite en CADA
+        frame del video, no una vez)."""
+        color_linea = (215, 215, 215)
+        alto = y2 - y1
+        for i in (1, 2):
+            ly = y1 + int(alto * i / 3)
+            cv2.line(lienzo, (x1 + 3, ly), (x2 - 3, ly), color_linea, 1, cv2.LINE_AA)
+
+    def _dibujar_zonas(self, lienzo: np.ndarray) -> None:
+        """Rectangulos de PISO de la calibracion, de fondo, para que quien no
+        conoce el proyecto entienda DONDE esta mirando -antes de esto, el
+        render eran cajas flotando sobre una rejilla vacia, sin ninguna
+        referencia de que habia alrededor-. Semitransparentes (mezclados con
+        `cv2.addWeighted`, no pintados solidos): no deben tapar del todo la
+        rejilla ni una caja de persona que camine por encima. El color de
+        cada una ya viene resuelto por quien llama segun su actividad -mas
+        calido, mas interaccion-, asi que aqui no hay ninguna cuenta que
+        hacer, solo dibujar."""
+        for zona in self.zonas:
+            x1, y1 = int(zona.x), int(zona.y)
+            x2, y2 = int(zona.x + zona.width), int(zona.y + zona.height)
+
+            capa = lienzo.copy()
+            cv2.rectangle(capa, (x1, y1), (x2, y2), zona.color, -1)
+            cv2.addWeighted(capa, 0.35, lienzo, 0.65, 0, dst=lienzo)
+            cv2.rectangle(lienzo, (x1, y1), (x2, y2), zona.color, 2)
+            self._dibujar_lineas_estante(lienzo, x1, y1, x2, y2)
+
+            # Mismo recorte que en _dibujar_caja: un nombre de gondola/estante
+            # largo, o una zona calibrada pegada al borde derecho, no debe
+            # dejar la etiqueta cortada fuera de cuadro.
+            (ancho_txt, alto_txt), _ = cv2.getTextSize(zona.etiqueta, FUENTE, 0.45, 1)
+            lx = max(0, min(x1, self.ancho - ancho_txt - 8))
+            cv2.rectangle(lienzo, (lx, y1), (lx + ancho_txt + 8, y1 + alto_txt + 8), zona.color, -1)
+            cv2.putText(lienzo, zona.etiqueta, (lx + 4, y1 + alto_txt + 3), FUENTE, 0.45,
+                        (20, 20, 20), 1, cv2.LINE_AA)
 
     def _lienzo_neutro(self) -> np.ndarray:
         """Un fondo gris con una rejilla suave. Cero informacion de la tienda."""
@@ -144,6 +214,33 @@ class Renderer:
         for y in range(paso, self.alto, paso):
             cv2.line(lienzo, (0, y), (self.ancho, y), GRIS_REJILLA, 1)
         return lienzo
+
+    def _dibujar_silueta_persona(
+        self, lienzo: np.ndarray, x1: int, y1: int, x2: int, y2: int,
+        color: tuple[int, int, int],
+    ) -> None:
+        """Un pictograma minimo (cabeza + cuerpo, sin rostro ni rasgos) DENTRO
+        de la caja de deteccion. Pedido explicito: un rectangulo con "id 7"
+        arriba no se lee como "una persona" para alguien sin contexto del
+        proyecto, solo como un cuadro abstracto. No hay ninguna silueta REAL
+        que copiar -la caja es lo unico que el sistema sabe-, asi que esta
+        forma es generica y se escala al tamano de CADA caja en concreto,
+        igual que el boceto de la portada del dashboard
+        (frontend/js/vista-modales.js): misma idea, resuelta en OpenCV en vez
+        de SVG."""
+        ancho, alto = x2 - x1, y2 - y1
+        cx = x1 + ancho // 2
+
+        radio_cabeza = max(3, min(ancho, alto) // 6)
+        cy_cabeza = y1 + radio_cabeza + max(2, int(alto * 0.05))
+        cv2.circle(lienzo, (cx, cy_cabeza), radio_cabeza, color, -1)
+
+        cuerpo_y1 = min(cy_cabeza + int(radio_cabeza * 0.8), y2 - 2)
+        ancho_cuerpo = max(radio_cabeza * 2, int(ancho * 0.7))
+        cx1 = max(x1 + 1, cx - ancho_cuerpo // 2)
+        cx2 = min(x2 - 1, cx + ancho_cuerpo // 2)
+        if cuerpo_y1 < y2:
+            cv2.rectangle(lienzo, (cx1, cuerpo_y1), (cx2, y2 - 1), color, -1)
 
     def _dibujar_caja(
         self,
@@ -166,10 +263,21 @@ class Renderer:
         x2, y2 = int(caja.x + caja.width), int(caja.y + caja.height)
 
         cv2.rectangle(lienzo, (x1, y1), (x2, y2), color, 2)
+        self._dibujar_silueta_persona(lienzo, x1, y1, x2, y2, color)
 
+        # La etiqueta ahora puede traer zona + dwell_time ademas del id (ver
+        # _etiqueta_de_interaccion), asi que es bastante mas larga que antes:
+        # sin este ajuste, una persona parada cerca del borde derecho o
+        # superior del frame dejaba la etiqueta cortada, fuera de cuadro -bug
+        # real, visto en la primera prueba de este dibujo-. `lx`/`ly` son la
+        # esquina donde ANCLA la etiqueta (normalmente x1, y1: pegada arriba
+        # a la izquierda de la caja), recortada para que el rectangulo de
+        # fondo siempre quepa entero dentro del lienzo.
         (ancho_txt, alto_txt), _ = cv2.getTextSize(etiqueta, FUENTE, 0.5, 1)
-        cv2.rectangle(lienzo, (x1, y1 - alto_txt - 6), (x1 + ancho_txt + 6, y1), color, -1)
-        cv2.putText(lienzo, etiqueta, (x1 + 3, y1 - 4), FUENTE, 0.5, (20, 20, 20), 1,
+        lx = max(0, min(x1, self.ancho - ancho_txt - 6))
+        ly = max(alto_txt + 6, y1)
+        cv2.rectangle(lienzo, (lx, ly - alto_txt - 6), (lx + ancho_txt + 6, ly), color, -1)
+        cv2.putText(lienzo, etiqueta, (lx + 3, ly - 4), FUENTE, 0.5, (20, 20, 20), 1,
                     cv2.LINE_AA)
 
         # El punto de apoyo (los pies): lo que la Persona 4 usara para ubicar a
@@ -180,25 +288,31 @@ class Renderer:
     def _dibujar_cabecera(
         self, lienzo, indice: int, timestamp: float, personas: int,
         estado_extra: str | None = None, color_estado: tuple[int, int, int] | None = None,
-        productos: int | None = None,
+        productos: int | None = None, interacciones: int | None = None,
+        devoluciones: int | None = None,
     ) -> None:
-        """Frame, timestamp, conteo de personas EN ESTE FRAME y, si se pasa
-        `productos`, el conteo ACUMULADO de tomas hasta este instante -al
-        lado de 'personas', mismo estilo, para que se lea igual de facil:
-        empieza en 0 y sube cada vez que hay un PICK_UP, se queda en ese
-        numero el resto del video (no es una ventana que desaparece, como
-        `estado_extra`, mas abajo)."""
+        """Frame, timestamp, conteo de personas EN ESTE FRAME y, si se pasan,
+        los contadores ACUMULADOS hasta este instante -al lado de 'personas',
+        mismo estilo, para que se lea igual de facil: cada uno empieza en 0 y
+        sube cuando corresponde (`interacciones` en cualquier APPROACH/
+        PICK_UP/PUT_BACK, `productos` solo en PICK_UP, `devoluciones` solo en
+        PUT_BACK), y se queda en ese numero el resto del video -no son una
+        ventana que desaparece, como `estado_extra`, mas abajo-."""
         cv2.rectangle(lienzo, (0, 0), (self.ancho, 34), (0, 0, 0), -1)
         izquierda = f"frame {indice}   t={timestamp:6.2f}s   personas: {personas}"
+        if interacciones is not None:
+            izquierda += f"   interacciones: {interacciones}"
         if productos is not None:
-            izquierda += f"   productos: {productos}"
-        cv2.putText(lienzo, izquierda, (10, 22), FUENTE, 0.6, BLANCO, 1, cv2.LINE_AA)
+            izquierda += f"   pick-ups: {productos}"
+        if devoluciones is not None:
+            izquierda += f"   put-backs: {devoluciones}"
+        cv2.putText(lienzo, izquierda, (10, 22), FUENTE, 0.55, BLANCO, 1, cv2.LINE_AA)
 
         if estado_extra:
             # Una insignia de color aparte del texto de siempre, no solo el
             # mismo texto en otro color: asi salta a la vista aunque se este
             # viendo de reojo, no solo leyendo con cuidado.
-            (ancho_base, _), _ = cv2.getTextSize(izquierda, FUENTE, 0.6, 1)
+            (ancho_base, _), _ = cv2.getTextSize(izquierda, FUENTE, 0.55, 1)
             x = 10 + ancho_base + 20
             color = color_estado or BLANCO
             (ancho_estado, _), _ = cv2.getTextSize(estado_extra, FUENTE, 0.65, 2)
