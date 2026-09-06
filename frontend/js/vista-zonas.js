@@ -474,11 +474,33 @@ function renderZonesHeatmap(bundle = bundleDe()) {
   </div>`;
 }
 
+// Umbral de muestra para el nivel de confianza de cada tarjeta: no es una
+// cifra estadistica rigurosa (no hay margen de error calculado), es un piso
+// practico -por debajo de 10 personas cualquier patron puede ser 2-3 casos
+// sueltos, no una tendencia; de 30 en adelante ya pesa menos el ruido de
+// una sola persona atipica.
+const MUESTRA_CONFIANZA_BAJA = 10;
+const MUESTRA_CONFIANZA_ALTA = 30;
+
+function nivelConfianza(peopleCount) {
+  const n = peopleCount || 0;
+  if (n >= MUESTRA_CONFIANZA_ALTA) return 'alta';
+  if (n >= MUESTRA_CONFIANZA_BAJA) return 'media';
+  return 'baja';
+}
+
 // Diagnostico automatico ("Space Management en 10 segundos"): reglas
 // simples sobre los numeros ya calculados (nada de IA ni llamada extra a la
 // API) que arman 2-4 tarjetas de texto con una lectura y una accion
 // sugerida. Vive en la columna DERECHA del dashboard (ver app.js), debajo
 // de "Privacidad y Ética".
+//
+// Cada tarjeta lleva un nivel de confianza (alta/media/baja) segun cuantas
+// personas distintas sostienen el patron -el sistema mide comportamiento
+// (se detienen, tocan, devuelven), nunca el producto en si (sin precio, sin
+// empaque, sin reconocimiento visual de que es cada cosa), asi que el texto
+// de "accion" solo puede pedir REVISAR en sitio, nunca nombrar una causa
+// especifica que el sistema no tiene forma de ver.
 function renderInsights() {
   if (!state.videoDetail) return '';
   const d = state.videoDetail;
@@ -487,40 +509,47 @@ function renderInsights() {
   const hasPickUps = d.pick_up_count > 0;
   const rejectionRatio = hasPickUps ? d.put_back_count / d.pick_up_count : 0;
   const dwell = d.average_dwell_time_s || 0;
+  const confianzaVideo = nivelConfianza(d.people_count);
 
   const list = [];
   if (d.people_count === 0) {
-    list.push({ type: 'neutral', title: 'Sin tránsito en el pasillo', desc: 'No se detectaron personas durante este periodo de grabación.', action: 'Evaluar iluminación de cabecera o señalética direccional de pasillo.' });
+    list.push({ type: 'neutral', confianza: confianzaVideo, title: 'Sin tránsito en el pasillo', desc: 'No se detectaron personas durante este periodo de grabación.', action: 'Evaluar iluminación de cabecera o señalética direccional de pasillo.' });
   } else if (engagementRatio >= 0.8) {
-    list.push({ type: 'success', title: 'Alta atracción de clientes al expositor', desc: `Un promedio de ${engagementRatio.toFixed(1)} interacciones por transeúnte con permanencia media de ${formatDwellTime(dwell)}.`, action: 'Mantener la posición de categoría; los clientes se detienen con naturalidad frente a este espacio.' });
+    list.push({ type: 'success', confianza: confianzaVideo, title: 'Alta atracción de clientes al expositor', desc: `Un promedio de ${engagementRatio.toFixed(1)} interacciones por transeúnte con permanencia media de ${formatDwellTime(dwell)}.`, action: 'Mantener la posición de categoría; los clientes se detienen con naturalidad frente a este espacio.' });
   } else if (engagementRatio < 0.4) {
-    list.push({ type: 'attention', title: 'Tráfico de paso rápido (Baja detención)', desc: 'La mayoría de personas circulan frente a la góndola sin detenerse ni interactuar.', action: 'Considerar productos gancho o cartelería promocional a la altura de los ojos (1.40m - 1.60m) para frenar el paso.' });
+    list.push({ type: 'attention', confianza: confianzaVideo, title: 'Tráfico de paso rápido (Baja detención)', desc: 'La mayoría de personas circulan frente a la góndola sin detenerse ni interactuar.', action: 'Considerar productos gancho o cartelería promocional a la altura de los ojos (1.40m - 1.60m) para frenar el paso.' });
   }
   if (hasPickUps) {
     if (rejectionRatio > 0.4) {
-      list.push({ type: 'attention', title: `Fricción de compra: ${Math.round(rejectionRatio * 100)}% de tomas devueltas`, desc: `De ${d.pick_up_count} tomas registradas, ${d.put_back_count} fueron devueltas a la góndola sin compra.`, action: 'Verificar claridad de etiquetas de precio, empaques dañados o información nutricional confusa en los estantes.' });
+      list.push({ type: 'attention', confianza: confianzaVideo, title: `Fricción de compra: ${Math.round(rejectionRatio * 100)}% de tomas devueltas`, desc: `De ${d.pick_up_count} tomas registradas, ${d.put_back_count} fueron devueltas a la góndola sin compra.`, action: 'Revisar el estante en sitio: el sistema detecta el patrón de devolución, pero no analiza el producto, así que no puede decir si la causa es precio, empaque o algo distinto.' });
     } else if (d.put_back_count === 0) {
-      list.push({ type: 'success', title: 'Decisión directa: 0% devoluciones', desc: `Todas las ${d.pick_up_count} tomas de producto se mantuvieron en poder del cliente.`, action: 'Planograma óptimo: la presentación del producto genera convicción inmediata en el comprador.' });
+      list.push({ type: 'success', confianza: confianzaVideo, title: 'Decisión directa: 0% devoluciones', desc: `Todas las ${d.pick_up_count} tomas de producto se mantuvieron en poder del cliente.`, action: 'Planograma óptimo: la presentación del producto genera convicción inmediata en el comprador.' });
     }
   } else if (d.interaction_count > 5 && d.pick_up_count === 0) {
-    list.push({ type: 'attention', title: 'Interacción visual sin contacto físico', desc: 'Los clientes se detienen frente a la góndola pero no toman ningún artículo con las manos.', action: 'Revisar accesibilidad física del estante y visibilidad frontal del surtido.' });
+    list.push({ type: 'attention', confianza: confianzaVideo, title: 'Interacción visual sin contacto físico', desc: 'Los clientes se detienen frente a la góndola pero no toman ningún artículo con las manos.', action: 'Revisar accesibilidad física del estante y visibilidad frontal del surtido.' });
   }
   if (zones.length > 1) {
     const bestZone = [...zones].sort((a, b) => (b.conversion_rate || 0) - (a.conversion_rate || 0))[0];
     if (bestZone && (bestZone.conversion_rate || 0) > 0) {
-      list.push({ type: 'success', title: `Zona líder en conversión: ${bestZone.name}`, desc: `Registró la mayor tasa de conversión (${formatPercentage(bestZone.conversion_rate)}) entre los estantes analizados.`, action: `Aprovechar el nivel '${bestZone.level}' para productos de mayor margen comercial o lanzamientos.` });
+      list.push({ type: 'success', confianza: nivelConfianza(bestZone.people_count), title: `Zona líder en conversión: ${bestZone.name}`, desc: `Registró la mayor tasa de conversión (${formatPercentage(bestZone.conversion_rate)}) entre los estantes analizados.`, action: `Aprovechar el nivel '${bestZone.level}' para productos de mayor margen comercial o lanzamientos.` });
     }
   }
 
+  const CLASE_CONFIANZA = {
+    alta: 'bg-[#EDF3EC] text-[#346538]',
+    media: 'bg-[#FBF3DB] text-[#956400]',
+    baja: 'bg-[#FAE4E4] text-[#9F2F2D]',
+  };
   const cards = list.map((rec) => {
     const isSuccess = rec.type === 'success';
     const isAttention = rec.type === 'attention';
     const cls = isSuccess ? 'bg-[#EDF3EC]/60 border-[#C7D6C5] text-[#346538]' : isAttention ? 'bg-[#FBF3DB]/40 border-[#EDD9A3] text-[#956400]' : 'bg-[#F7F6F3] border-[#EAEAEA] text-[#2F3437]';
     const iconHtml = isSuccess ? icon('check-circle-2', 'w-3.5 h-3.5 text-[#2B5230] shrink-0') : isAttention ? icon('alert-circle', 'w-3.5 h-3.5 text-[#956400] shrink-0') : icon('lightbulb', 'w-3.5 h-3.5 text-[#787774] shrink-0');
+    const confianzaHtml = rec.confianza ? `<span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${CLASE_CONFIANZA[rec.confianza]}" title="Nivel de confianza segun cuantas personas distintas sostienen este patron">Confianza ${esc(rec.confianza)}</span>` : '';
     return `
     <div class="rounded-lg p-3 border flex flex-col justify-between ${cls}">
       <div>
-        <div class="flex items-center gap-1.5 mb-1.5">${iconHtml}<h4 class="text-xs font-bold leading-tight text-[#111111]">${esc(rec.title)}</h4></div>
+        <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">${iconHtml}<h4 class="text-xs font-bold leading-tight text-[#111111]">${esc(rec.title)}</h4>${confianzaHtml}</div>
         <p class="text-[11px] text-[#57534E] leading-relaxed mb-2.5">${esc(rec.desc)}</p>
       </div>
       <div class="pt-2 border-t border-black/5 flex items-start gap-1.5 text-[11px]">
