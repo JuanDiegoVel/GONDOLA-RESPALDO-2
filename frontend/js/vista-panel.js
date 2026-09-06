@@ -139,7 +139,7 @@ function renderVideoSelector() {
   const options = `<option value="" ${state.selectedVideoId ? '' : 'selected'}>Elegir un video…</option>` +
     state.videos.map((v) => {
       const demo = isDemoVideo(v.video_id);
-      return `<option value="${esc(v.video_id)}" ${v.video_id === state.selectedVideoId ? 'selected' : ''}>${esc(v.source_name)} ${demo ? '(PRUEBA)' : '(Real)'}</option>`;
+      return `<option value="${esc(v.video_id)}" ${v.video_id === state.selectedVideoId ? 'selected' : ''}>${esc(v.source_name || v.video_id)} ${demo ? '(PRUEBA)' : '(Real)'}</option>`;
     }).join('');
 
   const badge = !current ? '' : isDemo

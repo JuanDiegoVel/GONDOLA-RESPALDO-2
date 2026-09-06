@@ -118,7 +118,12 @@ function initVideoPlayer() {
   // Subir el z-index del modal no arregla nada (esta dentro de #root), y
   // bajar el del portal lo esconderia detras de la tarjeta. Esconderlo
   // mientras hay modal es lo correcto: detras de un modal no se ve igual.
-  if (state.isConfigModalOpen || state.subida.abierto) {
+  //
+  // infoAbierto (el modal de "de donde sale este dato", ver
+  // vista-modales.js/renderInfoModal) es el mismo caso: sin esto el video
+  // pintaba encima del modal y su boton de cerrar quedaba inalcanzable
+  // -bug real, visto en pantalla, solo se salia con F5-.
+  if (state.isConfigModalOpen || state.subida.abierto || state.infoAbierto) {
     ocultarReproductores();
     return;
   }
