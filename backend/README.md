@@ -79,10 +79,23 @@ metrics`) y la importa. `frontend/index.html` lo usa desde el botón
 
 Los trabajos viven en memoria (`uploads._TRABAJOS`): reiniciar la API
 pierde los que estén a medias, a propósito — se usa de a un video por vez,
-no hace falta persistirlo. Necesita `opencv-python` y `ultralytics` (las
-mismas del `ai-service`) solo para el prevuelo; por eso no van en
-`backend/requirements.txt` (ver la nota en ese archivo) y se importan
-dentro de la función que las usa.
+no hace falta persistirlo.
+
+**Paso manual obligatorio para que la subida funcione de verdad:** el
+prevuelo necesita `opencv-python` y `ultralytics` (las mismas del
+`ai-service`), pero a propósito NO están en `backend/requirements.txt`
+(ver la nota en ese archivo) — así que instalar solo eso deja la API
+arrancando bien, sus tests pasando, y la subida rechazando **cualquier**
+video con `No pude revisar el video: No module named 'cv2'`, sin importar
+qué tan buen video sea. Hace falta instalarlas A MANO, en el mismo
+entorno donde corre `uvicorn api:app` (no basta con tenerlas en el
+`.venv` del `ai-service`, es un proceso de Python aparte):
+
+    cd backend
+    .venv\Scripts\python -m pip install opencv-python==5.0.0.93 ultralytics==8.4.129
+
+Solo hace falta en la máquina que vaya a recibir subidas desde el
+dashboard, igual que ya pasa con quien corre el pipeline completo.
 
 ## Configuración (`backend/.env`)
 
