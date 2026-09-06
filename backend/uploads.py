@@ -362,9 +362,20 @@ def _hilo_procesar(job_id: str, video_id: str, nombre_original: str) -> None:
         "VIDEO_ID": video_id,
         "VIDEO_PATH": f"data/videos/{video_id}.mp4",
         "RENDER_MODE": "privacy",
+        # Sin esto, el HIJO decide por su cuenta si su stdout es una terminal
+        # o no -y aqui NUNCA lo es: es la tuberia que este mismo Popen abre
+        # mas abajo (stdout=PIPE)-, asi que usa buffer COMPLETO (varios KB)
+        # en vez de linea por linea. `bufsize=1` de Popen solo afecta como
+        # el PADRE (este proceso) LEE la tuberia; no le dice nada al hijo
+        # sobre como ESCRIBIR. El resultado, real, visto en la practica: el
+        # `for linea in proceso.stdout` de abajo no recibia nada hasta que
+        # el buffer del hijo se llenaba o el proceso terminaba, asi que el
+        # progreso (mas abajo) se quedaba pegado en 10% y saltaba de golpe a
+        # 100% -sin barra de verdad, aunque la cadena si avanzaba por dentro-.
+        "PYTHONUNBUFFERED": "1",
     }
     proceso = subprocess.Popen(
-        [sys.executable, "-m", "gondola", "run"],
+        [sys.executable, "-u", "-m", "gondola", "run"],
         cwd=str(AI_SERVICE_DIR),
         env=entorno,
         stdout=subprocess.PIPE,
