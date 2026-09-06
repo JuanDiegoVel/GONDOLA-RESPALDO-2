@@ -90,8 +90,16 @@ RENDER_DIR = Path(
 
 # NO es "*" a proposito -ver el docstring de arriba, seccion CORS-.
 # `null` es el Origin que manda un archivo abierto con file://, que es como
-# se usa el dashboard. Los localhost cubren servirlo por HTTP.
-ORIGENES_PERMITIDOS = r"^(null|http://(localhost|127\.0\.0\.1)(:\d+)?)$"
+# se usa el dashboard en local. Los localhost cubren servirlo por HTTP en
+# local. El dominio de Firebase Hosting (gondola-inteligente, ver
+# frontend/README.md o el deploy con `firebase deploy`) cubre el dashboard
+# publicado -Firebase Hosting siempre sirve por HTTPS, de ahi el
+# "https://" fijo en ese tramo, a diferencia de los otros dos que son http.
+ORIGENES_PERMITIDOS = (
+    r"^(null"
+    r"|http://(localhost|127\.0\.0\.1)(:\d+)?"
+    r"|https://gondola-inteligente\.(web\.app|firebaseapp\.com))$"
+)
 
 app.add_middleware(
     CORSMiddleware,

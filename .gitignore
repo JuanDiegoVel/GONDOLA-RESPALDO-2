@@ -1,6 +1,9 @@
 # --- Secretos y configuracion local ---------------------------------------
 .env
 
+# --- Cache local del CLI de Firebase (deploy de frontend/, ver firebase.json)
+.firebase/
+
 # --- Python ---------------------------------------------------------------
 __pycache__/
 *.py[cod]
@@ -39,6 +42,21 @@ data/output/*
 !data/videos/README.md
 !data/models/README.md
 !data/output/README.md
+
+# Excepcion puntual para el despliegue en la nube (Render): el endpoint
+# GET /videos/{id}/render solo necesita el render final (etapa `interact`)
+# de los 6 videos curados -no el video original, no las etapas intermedias-
+# para poder servirlo sin un servicio de almacenamiento aparte. Nunca crece
+# con lo que suba un usuario (uploads.py sigue gitignored como siempre):
+# esta lista es fija, de los 6 videos de ejemplo, y solo vive en el repo
+# personal de respaldo (origin/respaldo2), nunca se lleva al teamrepo
+# compartido -alli el equipo sigue sin binarios en git-.
+!data/output/video_001.interact.privacy.mp4
+!data/output/video_demo_merl_15_3.interact.privacy.mp4
+!data/output/video_demo_merl_18_3.interact.privacy.mp4
+!data/output/video_demo_merl_24_3.interact.privacy.mp4
+!data/output/video_demo_merl_36_1.interact.privacy.mp4
+!data/output/video_demo_merl_39_1.interact.privacy.mp4
 
 # data/groundtruth/ NO se ignora: son anotaciones hechas a mano que no se
 # pueden regenerar. Si se pierden, hay que rehacerlas desde cero.

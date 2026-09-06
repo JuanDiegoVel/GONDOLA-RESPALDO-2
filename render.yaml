@@ -1,0 +1,37 @@
+# Blueprint de Render (https://render.com/docs/blueprint-spec): en el
+# dashboard de Render, "New > Blueprint" apuntando a este repositorio lee
+# este archivo y crea el web service y la base de datos solos, sin clicks
+# manuales por servicio.
+#
+# A PROPOSITO NO incluye ai-service/: este despliegue es de SOLO LECTURA
+# -sirve lo que ya esta en PostgreSQL y los 6 videos renderizados que van
+# en el propio repo (ver .gitignore)-. Subir y procesar un video nuevo
+# (backend/uploads.py) sigue siendo una funcion que solo corre en local,
+# donde SI esta instalado PyTorch/YOLO -ver la conversacion en el README
+# del deploy-. requirements.txt de backend/ ya es liviano a proposito (sin
+# opencv/ultralytics/torch), por eso alcanza el plan free (512 MB).
+services:
+  - type: web
+    name: gondola-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gondola-db
+          property: connectionString
+      # RENDER_DIR NO se fija a mano: api.py ya calcula el default como
+      # "la carpeta que contiene backend/, mas data/output" (ver api.py),
+      # que es correcto sea cual sea la ruta absoluta donde Render clone
+      # el repositorio -no hace falta adivinarla.
+
+databases:
+  - name: gondola-db
+    plan: free
+    databaseName: gondola
+    user: gondola
