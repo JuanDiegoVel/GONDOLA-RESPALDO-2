@@ -9,9 +9,14 @@ El paso de zonas no se puede saltar: son rectangulos en pixeles de una
 camara concreta, y sin ese archivo el importador se niega a importar.
 
 El prevuelo comprueba que el archivo abra, que duracion/resolucion/fps
-esten en rango y que YOLO encuentre PERSONAS. No comprueba que sea una
-gondola: YOLO detecta las 80 clases de COCO, no clasifica escenas. De eso
-responde quien sube el video, y por eso lo declara antes.
+esten en rango, que la CAMARA sea fija (ver `_fraccion_camara_en_movimiento`)
+y que YOLO encuentre PERSONAS. No comprueba que la escena sea una gondola:
+YOLO detecta las 80 clases de COCO (no existe una clase "gondola" ni
+"estante" en ese catalogo), y el chequeo de camara fija solo descarta
+video grabado a mano/con paneo/con cortes de escena -una calle grabada con
+tripode tambien pasaria ese chequeo-. Verificar que la escena ES una
+gondola de verdad queda en manos de quien sube el video, y por eso lo
+declara antes (`confirma_gondola`).
 
 Privacidad: el video no sale de esta maquina y se BORRA si el prevuelo lo
 rechaza. El frame para calibrar se elige entre los que no tienen ninguna
@@ -75,6 +80,27 @@ MIN_FRACCION_CON_PERSONAS = 0.15
 Por debajo de eso el video puede ser de una tienda, pero no hay a quien
 seguir: la cadena entera daria cero, y es mejor decirlo antes de gastar
 10 minutos de CPU que despues."""
+
+UMBRAL_MOVIMIENTO_CAMARA = 0.3
+ANCLAS_MOVIMIENTO = 6
+SALTO_MOVIMIENTO_S = 0.5
+"""Una camara de vigilancia que monitorea una gondola es FIJA: entre dos
+capturas separadas por medio segundo, solo cambia la parte del cuadro
+donde hay gente caminando -en pruebas sinteticas (camara fija + una
+"persona" moviendose), la fraccion cambiada quedo bajo 4%, con margen de
+sobra para ruido de video real (compresion, parpadeo de luces, varias
+personas a la vez)-. Un video grabado a mano, con paneo, zoom, o editado
+con cortes de escena cambia CASI TODO el cuadro de una vez: en las mismas
+pruebas, un paneo constante de ~90 px/s dio ~32%, ya por encima del
+umbral. Se comparan `ANCLAS_MOVIMIENTO` pares de frames, repartidos por
+todo el video pero cada par separado solo `SALTO_MOVIMIENTO_S` segundos
+-no los mismos frames que se muestrean para personas, mas abajo, que estan
+separados por minutos: un salto tan corto aisla el movimiento de CAMARA en
+el momento, sin confundirlo con que la escena cambia naturalmente a lo
+largo de un video largo (mas gente entra, cambia la luz, etc.)-. No es una
+prueba de que la escena sea una gondola -YOLO no tiene esa clase, ver el
+docstring del modulo-, pero descarta de entrada clips que claramente no
+vienen de una camara fija."""
 
 ETAPAS = ("detect", "track", "zones", "interact", "metrics")
 
@@ -165,6 +191,32 @@ def _sanear(nombre: str) -> str:
     return base[:40] or "video"
 
 
+def _fraccion_camara_en_movimiento(cv2: Any, captura: Any, total: int, fps: float) -> float:
+    """Promedio de que fraccion del cuadro cambia drasticamente entre pares
+    de frames cercanos en el tiempo, repartidos por todo el video. Alto si
+    la camara paneo/se movio/hubo un corte de escena; bajo si la camara es
+    fija y solo se movio la gente. Ver el docstring de UMBRAL_MOVIMIENTO_CAMARA."""
+    salto = max(1, round(fps * SALTO_MOVIMIENTO_S))
+    limite = total - 1 - salto
+    anclas = [int(i * limite / (ANCLAS_MOVIMIENTO - 1)) for i in range(ANCLAS_MOVIMIENTO)] if limite > 0 else [0]
+
+    fracciones: list[float] = []
+    for ancla in anclas:
+        captura.set(cv2.CAP_PROP_POS_FRAMES, ancla)
+        ok1, frame1 = captura.read()
+        captura.set(cv2.CAP_PROP_POS_FRAMES, ancla + salto)
+        ok2, frame2 = captura.read()
+        if not (ok1 and ok2):
+            continue
+        gris1 = cv2.GaussianBlur(cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY), (5, 5), 0)
+        gris2 = cv2.GaussianBlur(cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY), (5, 5), 0)
+        diferencia = cv2.absdiff(gris1, gris2)
+        cambiados = int((diferencia > 25).sum())
+        fracciones.append(cambiados / diferencia.size)
+
+    return sum(fracciones) / len(fracciones) if fracciones else 0.0
+
+
 def _revisar(ruta: Path) -> dict[str, Any]:
     """Abre el video, mide, y pasa YOLO por una muestra de frames.
 
@@ -202,6 +254,22 @@ def _revisar(ruta: Path) -> dict[str, Any]:
     if duracion > DURACION_MAX_S:
         captura.release()
         return {"apto": False, "motivo": f"El video dura {duracion / 60:.1f} min, mas del maximo de {DURACION_MAX_S / 60:g} min.", **medidas}
+
+    fraccion_movimiento = _fraccion_camara_en_movimiento(cv2, captura, total, fps)
+    medidas["fraccion_movimiento_camara"] = round(fraccion_movimiento, 3)
+    if fraccion_movimiento > UMBRAL_MOVIMIENTO_CAMARA:
+        captura.release()
+        return {
+            "apto": False,
+            "motivo": (
+                f"La camara se mueve demasiado para ser una camara fija de vigilancia "
+                f"({fraccion_movimiento:.0%} del cuadro cambia entre capturas cercanas en el "
+                f"tiempo, maximo {UMBRAL_MOVIMIENTO_CAMARA:.0%}). Una gondola se monitorea con "
+                "una camara fija; un video grabado a mano, con paneo, zoom, o con cortes de "
+                "escena no sirve para medir dwell time por coordenadas."
+            ),
+            **medidas,
+        }
 
     from ultralytics import YOLO
 

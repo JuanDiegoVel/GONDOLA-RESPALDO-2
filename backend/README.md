@@ -64,11 +64,21 @@ estático de `data/output/` (ver el comentario de `RENDER_DIR` en `api.py`)
 La ÚNICA parte de esta API que escribe -por eso vive en su propio módulo,
 ver la sección CORS abajo-. Deja que alguien suba un video sin tocar la
 terminal ni copiar archivos a mano: sube el archivo, el servidor revisa
-que sea apto (abre, dura entre 5 s y 15 min, YOLO encuentra personas),
-la persona dibuja los estantes sobre un fotograma sin gente, y desde ahí
-la API lanza sola la cadena completa (`detect → track → zones → interact →
-metrics`) y la importa. `frontend/index.html` lo usa desde el botón
-"Subir video" del panel principal.
+que sea apto (abre, dura entre 5 s y 15 min, la cámara es fija -ver
+`_fraccion_camara_en_movimiento` en `uploads.py`-, YOLO encuentra
+personas), la persona dibuja los estantes sobre un fotograma sin gente, y
+desde ahí la API lanza sola la cadena completa (`detect → track → zones →
+interact → metrics`) y la importa. `frontend/index.html` lo usa desde el
+botón "Subir video" del panel principal.
+
+El chequeo de cámara fija **no** verifica que la escena sea una góndola
+-YOLO no tiene esa clase entre las 80 de COCO, no hay forma de que un
+detector de objetos genérico sepa distinguir un pasillo de supermercado de
+cualquier otro sitio-, solo descarta video grabado a mano, con paneo, zoom
+o cortes de escena: una cámara de vigilancia que monitorea una góndola no
+se mueve. Que la escena sea de verdad una góndola sigue quedando en manos
+de quien sube el video (`confirma_gondola`, la casilla que hay que marcar
+antes de subir).
 
 | Método y ruta | Qué hace |
 |---|---|
